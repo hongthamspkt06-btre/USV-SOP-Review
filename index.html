@@ -800,7 +800,7 @@ function updateSyncStatusBadge(state){
   const el = document.getElementById('syncStatus');
   if(!el) return;
   if(state === 'synced'){
-    el.textContent = '● Synced with Google Drive';
+    el.textContent = '● Synced';
     el.style.color = 'var(--ok)'; el.style.borderColor = 'var(--ok)'; el.style.background = 'rgba(47,154,91,0.08)';
   }else if(state === 'error'){
     el.textContent = '● Drive sync error — using local cache';
@@ -915,6 +915,13 @@ async function getPdfBlob(id){
       if(res && res.ok){
         updateSyncStatusBadge('synced');
         return res.base64 ? base64ToBlob(res.base64, 'application/pdf') : null;
+      }
+      // "PDF not found" nghĩa là tài liệu này đơn giản là chưa được đính kèm PDF —
+      // đây là trạng thái bình thường, KHÔNG phải lỗi đồng bộ Drive. Backend vẫn
+      // trả lời được (JSON hợp lệ) nên giữ nguyên badge "synced", không báo lỗi.
+      if(res && /not found/i.test(res.error || '')){
+        updateSyncStatusBadge('synced');
+        return null;
       }
       throw new Error((res && res.error) || 'Unexpected response from backend');
     }catch(err){

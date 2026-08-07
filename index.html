@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>USV SOP Review — Unisoll Vina</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #D5D8DC;
+    --panel: #ffffff;
+    --panel-2: #eef0f2;
+    --border: #c7ccd2;
+    --border-soft: #dde0e4;
+    --text: #1f2430;
+    --text-dim: #5b6472;
+    --text-faint: #8991a0;
+    --accent: #b9791f;
+    --accent-dim: #f0dfc0;
+    --teal: #2c8b82;
+    --teal-dim: #d7ece9;
+    --ok: #2f9a5b;
+    --danger: #c0453a;
+    --danger-dim: #fbe1de;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: var(--bg); color: var(--text); font-family: var(--sans);
+    min-height:100vh; padding: 28px 20px 60px;
+  }
+  .wrap{ max-width: 1560px; margin: 0 auto; }
+
+  /* ===== 3-column layout ===== */
+  .layout{ display:grid; grid-template-columns: 240px 1fr 1fr; gap:16px; align-items:stretch; margin-top:14px; }
+
+  .toc-panel{ background: var(--panel); border:1px solid var(--border); border-radius:10px; padding: 12px; position: sticky; top: 16px; max-height: calc(100vh - 32px); display:flex; flex-direction:column; }
+  .toc-head{ font-family: var(--mono); font-size:10px; letter-spacing:1px; text-transform:uppercase; color: var(--text-faint); background: var(--panel-2); border:1px solid var(--border); border-radius:6px; padding: 8px 10px; margin-bottom:8px; }
+  .toc-list{ overflow-y:auto; }
+
+  .toc-folder{ margin-bottom:2px; }
+  .toc-folder-head{
+    display:flex; align-items:center; gap:6px; font-family: var(--mono); font-size:11.5px; font-weight:600;
+    color: var(--text); padding:7px 8px; border-radius:6px; cursor:pointer; user-select:none;
+  }
+  .toc-folder-head:hover{ background: rgba(44,139,130,0.08); }
+  .toc-folder-head .chev{ font-size:9px; color: var(--text-faint); width:10px; flex-shrink:0; transition: transform 0.15s ease; }
+  .toc-folder.open .toc-folder-head .chev{ transform: rotate(90deg); }
+  .toc-folder-head .fname{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .toc-folder-head .fcount{ font-size:9.5px; color: var(--text-faint); background: var(--panel-2); border-radius:8px; padding:1px 6px; flex-shrink:0; }
+  .toc-folder.has-active .toc-folder-head .fname{ color: var(--accent); }
+  .toc-sub{ overflow:hidden; max-height:0; transition: max-height 0.18s ease; }
+  .toc-folder.open .toc-sub{ max-height:2000px; }
+  .toc-item{ font-family: var(--mono); font-size:11.5px; color: var(--text-dim); padding:6px 8px 6px 22px; border-radius:6px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .toc-item:hover{ background: rgba(44,139,130,0.08); color: var(--text); }
+  .toc-item.active{ background: rgba(185,121,31,0.12); color: var(--accent); font-weight:600; }
+  .toc-empty{ font-family: var(--mono); font-size:10.5px; color: var(--text-faint); padding:5px 8px 5px 22px; font-style:italic; }
+
+  .main-col{ min-width:0; display:flex; flex-direction:column; }
+
+  .pdf-panel{ background: var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; position: sticky; top:16px; height: 100%; max-height: calc(100vh - 32px); display:flex; flex-direction:column; }
+  .pdf-panel-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background: var(--panel-2); border-bottom:1px solid var(--border); font-family: var(--mono); font-size:10.5px; letter-spacing:0.8px; text-transform:uppercase; color: var(--text-faint); }
+  .pdf-panel-body{ flex:1; overflow:auto; position:relative; }
+  .pdf-frame{ width:100%; height:100%; border:none; display:block; }
+  .pdf-empty{ height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:20px; color: var(--text-faint); font-family: var(--mono); font-size:12px; }
+  .btn.small{ padding:6px 11px; font-size:10.5px; }
+
+  @media (max-width: 1180px){
+    .layout{ grid-template-columns: 1fr; }
+    .toc-panel, .pdf-panel{ position: static; max-height:none; height:auto; }
+    .toc-list{ max-height: 280px; }
+    .pdf-panel{ height: 520px; }
+  }
+  .card-shadow{ box-shadow: 0 1px 3px rgba(31,36,48,0.07); }
+
+  /* ===== Header ===== */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    padding: 14px 18px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px 10px 0 0;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:30px; height:30px; border-radius:6px; background: linear-gradient(135deg, var(--teal), var(--accent));
+    display:flex; align-items:center; justify-content:center; font-family: var(--mono); font-weight:700; font-size:11px; color:#fff;
+  }
+  .brand-text .t1{ font-weight:700; font-size:14.5px; letter-spacing:0.3px; }
+  .brand-text .t2{ font-family: var(--mono); font-size:10.5px; color: var(--text-faint); letter-spacing:1px; text-transform:uppercase; margin-top:1px;}
+  .searchbox{
+    display:flex; align-items:center; gap:8px; background: var(--panel-2); border:1px solid var(--border);
+    border-radius:7px; padding:7px 12px; width:260px;
+  }
+  .searchbox input{ background:none; border:none; outline:none; color:var(--text); font-family: var(--sans); font-size:12.5px; width:100%; }
+  .searchbox input::placeholder{ color: var(--text-faint); }
+  .btn{
+    font-family: var(--mono); font-size:11.5px; color: var(--text-dim); background: var(--panel-2);
+    border:1px solid var(--border); border-radius:7px; padding:8px 13px; cursor:pointer; white-space:nowrap;
+  }
+  .btn:hover{ color: var(--accent); border-color: var(--accent); }
+  .btn.primary{ background: var(--teal); color:#fff; border-color: var(--teal); }
+  .btn.primary:hover{ opacity:0.9; color:#fff; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .section-label{
+    font-family: var(--mono); font-size:10.5px; letter-spacing:1.4px; text-transform:uppercase;
+    color: var(--text-faint); padding: 18px 4px 8px; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .section-label .lbl{ display:flex; align-items:center; gap:8px; }
+  .section-label .dot{ width:5px; height:5px; border-radius:50%; background: var(--teal); }
+  .section-label.boxed{
+    background: var(--panel-2); border:1px solid var(--border); border-bottom:none;
+    border-radius:10px 10px 0 0; padding:10px 14px; margin-top:14px;
+  }
+  .section-label.boxed + .info-panel{ border-radius:0 0 10px 10px; border-top:none; }
+
+  /* ===== Info panel ===== */
+  .info-panel{
+    background: var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden;
+    height: 250px; padding: 22px; display:flex; align-items:center;
+  }
+  .info-empty{ color: var(--text-faint); font-size:13px; font-family: var(--mono); padding: 40px 0; text-align:center; width:100%; }
+  .field-grid{ display:flex; flex-direction:column; justify-content:center; gap: 14px; width:100%; height:100%; }
+  .info-row{ display:grid; gap:14px; }
+  .info-row.row-1{ grid-template-columns: 1fr 2fr; }
+  .info-row.row-2{ grid-template-columns: repeat(3, 1fr); }
+  .info-row.row-3{ grid-template-columns: repeat(3, 1fr); }
+  .field-grid .full{ grid-column: 1 / -1; }
+  .field{
+    display:flex; flex-direction:column; gap:6px; background: var(--panel-2); border:1px solid var(--border);
+    border-radius:8px; padding:12px 14px;
+  }
+  .field .k{ font-family: var(--mono); font-size:9.5px; letter-spacing:0.8px; text-transform:uppercase; color: var(--text-faint); }
+  .field .v{ font-size:13.5px; font-weight:600; color: var(--text); }
+  .field .v.mono{ font-family: var(--mono); font-weight:500; font-size:13px; }
+
+  /* ===== Signature-clickable fields ===== */
+  .sig-field{ cursor:pointer; user-select:none; transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease; }
+  .sig-field:hover{ border-color: var(--teal); }
+  .sig-field.signed{ background: var(--teal-dim); border-color: var(--teal); }
+  .sig-field.signed .k, .sig-field.signed .v{ color: var(--teal); }
+  .sig-field.signed .k::after{ content:' ✓ Signed'; color: var(--teal); font-weight:700; }
+  .sig-field.signing{ opacity:0.55; cursor:wait; }
+  .sig-field.commented{ background: var(--danger-dim); border-color: var(--danger); }
+  .sig-field.commented .k, .sig-field.commented .v{ color: var(--danger); }
+  .sig-field.commented .k::after{ content:' ✎ Revision'; color: var(--danger); font-weight:700; }
+
+  .status-badge{ font-family: var(--mono); font-size:10.5px; font-weight:700; letter-spacing:0.3px; cursor:default; }
+  .status-badge.approved{ color: var(--teal); }
+  .status-badge.partial{ color: var(--accent); }
+  .status-badge.waiting{ color: var(--text-faint); font-weight:500; }
+
+  /* ===== Signature settings modal ===== */
+  .modal-overlay{
+    position:fixed; inset:0; background: rgba(20,24,32,0.55); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-box{ background: var(--panel); border-radius:10px; width:100%; max-width:560px; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; }
+  .modal-head{
+    display:flex; align-items:center; justify-content:space-between; padding:14px 18px;
+    background: var(--panel-2); border-bottom:1px solid var(--border); font-weight:700; font-size:13.5px;
+  }
+  .modal-body{ padding:16px 18px; overflow-y:auto; display:flex; flex-direction:column; gap:14px; }
+  .modal-note{ padding:10px 18px 16px; font-family: var(--mono); font-size:10.5px; color: var(--text-faint); line-height:1.5; }
+  .sig-row{ display:flex; gap:14px; border:1px solid var(--border); border-radius:8px; padding:12px; background: var(--panel-2); }
+  .sig-thumb{
+    width:74px; height:74px; flex-shrink:0; border:1px dashed var(--border); border-radius:6px; background:#fff;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .sig-thumb img{ max-width:100%; max-height:100%; object-fit:contain; }
+  .sig-thumb span{ font-family: var(--mono); font-size:9px; color: var(--text-faint); text-align:center; }
+  .sig-fields{ flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+  .sig-title{ font-size:12.5px; font-weight:700; }
+  .sig-title .sig-role{ font-weight:500; color: var(--text-dim); }
+  .sig-pos{ display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; }
+  .sig-pos label{ display:flex; flex-direction:column; gap:3px; font-family: var(--mono); font-size:9px; letter-spacing:0.4px; text-transform:uppercase; color: var(--text-faint); }
+  .sig-pos input{
+    width:100%; padding:5px 7px; border:1px solid var(--border); border-radius:5px; background:#fff;
+    color: var(--text); font-family: var(--sans); font-size:12px;
+  }
+  .sig-pos input:focus{ outline:none; border-color: var(--teal); }
+
+  .stamp-canvas-wrap{ position:relative; margin:0 auto; border:1px solid var(--border); background:#777; overflow:hidden; max-width:100%; }
+  .stamp-canvas-wrap canvas{ display:block; }
+  .stamp-img-overlay{ position:absolute; cursor:move; border:1.5px dashed var(--teal); box-shadow:0 0 0 9999px rgba(0,0,0,0.12); }
+  .stamp-resize-handle{ position:absolute; width:13px; height:13px; background:var(--teal); border:2px solid #fff; border-radius:3px; cursor:nwse-resize; }
+
+  /* ===== File list ===== */
+  .file-list{ background: var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .fl-scroll{ max-height: 510px; overflow-y: auto; }
+  .fl-head{
+    display:grid; grid-template-columns: 34px 1.1fr 2fr 0.6fr 34px; gap:10px; padding: 9px 18px;
+    background: var(--panel-2); font-family: var(--mono); font-size:9.5px; letter-spacing:0.8px; text-transform:uppercase;
+    color: var(--text-faint); border-bottom:1px solid var(--border);
+    position: sticky; top: 0; z-index: 2;
+  }
+  .fl-row{
+    display:grid; grid-template-columns: 34px 1.1fr 2fr 0.6fr 34px; gap:10px; align-items:center;
+    padding: 11px 18px; cursor:pointer; border-bottom:1px solid var(--border-soft); transition: background 0.15s ease;
+  }
+  .fl-row:last-child{ border-bottom:none; }
+  .fl-row:hover{ background: rgba(44,139,130,0.06); }
+  .fl-row.active{ background: rgba(185,121,31,0.09); }
+  .fl-row.active .fname{ color: var(--accent); }
+  .pdf-icon{
+    width:26px; height:26px; border-radius:5px; background: var(--danger-dim); color:var(--danger);
+    font-family: var(--mono); font-size:8px; font-weight:700; display:flex; align-items:center; justify-content:center;
+  }
+  .fname{ font-family: var(--mono); font-size:12.5px; color: var(--text); }
+  .fl-row .cell{ font-size:12px; color: var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .del-btn{
+    width:24px; height:24px; border-radius:5px; border:1px solid var(--border); background:#fff; color: var(--text-faint);
+    font-size:12px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .del-btn:hover{ color: var(--danger); border-color: var(--danger); background: var(--danger-dim); }
+  .fl-empty{ padding: 30px 18px; text-align:center; color: var(--text-faint); font-family: var(--mono); font-size:12px; }
+
+  /* ===== Add file panel ===== */
+  .add-panel{ background: var(--panel); border:1px solid var(--border); border-radius:10px; padding: 16px 18px; margin-top:14px; display:none; }
+  .add-panel.open{ display:block; }
+  .add-row{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .add-row input[type=file]{ font-family: var(--sans); font-size:12.5px; color: var(--text-dim); }
+  .add-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px 16px; margin-bottom:14px; }
+  .add-grid .full{ grid-column: 1/-1; }
+  .add-field label{ display:block; font-family: var(--mono); font-size:9.5px; letter-spacing:0.6px; text-transform:uppercase; color: var(--text-faint); margin-bottom:5px; }
+  .add-field input{
+    width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:6px; background: var(--panel-2);
+    color: var(--text); font-family: var(--sans); font-size:12.5px;
+  }
+  .add-field input:focus{ outline:none; border-color: var(--teal); }
+  .add-actions{ display:flex; gap:10px; justify-content:flex-end; }
+  .extract-note{ font-family: var(--mono); font-size:10.5px; color: var(--teal); margin-bottom:10px; display:none; }
+  .extract-note.show{ display:block; }
+
+  .note{
+    margin-top:16px; font-size:11.5px; color: var(--text-faint); font-family: var(--mono);
+    display:flex; gap:8px; align-items:flex-start; line-height:1.5;
+  }
+
+  @media (max-width: 900px){
+    .info-row.row-1{ grid-template-columns: 1fr; }
+    .info-row.row-2, .info-row.row-3{ grid-template-columns: repeat(2, 1fr); }
+    .info-panel{ height:auto; }
+  }
+  @media (max-width: 760px){
+    .fl-head, .fl-row{ grid-template-columns: 30px 1fr 1.4fr 34px; }
+    .info-row.row-1, .info-row.row-2, .info-row.row-3{ grid-template-columns: 1fr; }
+    .add-grid{ grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar card-shadow">
+    <div class="brand">
+      <div class="brand-mark">SOP</div>
+      <div class="brand-text">
+        <div class="t1">USV SOP Review</div>
+        <div class="t2">Hansoll Textile · Unisoll Vina Co., Ltd.</div>
+      </div>
+    </div>
+    <div id="syncStatus" style="font-family:var(--mono); font-size:10px; letter-spacing:0.5px; text-transform:uppercase; padding:5px 10px; border-radius:6px; border:1px solid var(--border);"></div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <div class="searchbox">
+        <span style="color:var(--text-faint); font-size:13px;">⌕</span>
+        <input type="text" id="searchInput" placeholder="Search by document no., title...">
+      </div>
+      <div class="btn primary" id="uploadBtn">+ Upload</div>
+      <input type="file" id="pdfInputMulti" accept="application/pdf" multiple style="display:none;">
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <aside class="toc-panel card-shadow">
+      <div class="toc-head">Index</div>
+      <div class="toc-list" id="tocList"></div>
+    </aside>
+
+    <main class="main-col">
+  <div class="section-label boxed">
+    <span class="lbl"><span class="dot"></span>Document Info</span>
+    <span style="display:flex; gap:8px;">
+      <span class="btn small" id="sigSettingsBtn">🖊 Signature settings</span>
+      <span class="btn small" id="clearSelectionBtn" style="display:none;">✕ Clear selection</span>
+    </span>
+  </div>
+  <div class="info-panel card-shadow">
+    <div class="info-fields" id="infoFields" style="width:100%;">
+      <div class="info-empty">— Select a document below to view details —</div>
+    </div>
+  </div>
+
+  <div class="section-label"><span class="lbl"><span class="dot"></span>Document List</span></div>
+  <div class="file-list card-shadow">
+    <div class="fl-scroll">
+      <div class="fl-head">
+        <span></span><span>Document Code</span><span>Document Name</span><span>Status</span><span></span>
+      </div>
+      <div id="fileListBody"></div>
+    </div>
+  </div>
+
+    </main>
+
+    <aside class="pdf-panel card-shadow">
+      <div class="pdf-panel-head"><span>PDF Preview</span><span class="btn small" id="pdfDownloadBtn" style="display:none;">⬇ Download</span></div>
+      <div class="pdf-panel-body" id="pdfPanelBody">
+        <div class="pdf-empty">Select a document to preview its PDF content.</div>
+      </div>
+    </aside>
+
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="pwdModalOverlay" style="display:none; z-index:80;">
+  <div class="modal-box card-shadow" style="max-width:360px;">
+    <div class="modal-head">
+      <span id="pwdModalTitle">Enter password</span>
+      <span class="btn small" id="pwdModalCancel">✕ Cancel</span>
+    </div>
+    <div class="modal-body">
+      <input type="password" id="pwdModalInput" placeholder="Password" autocomplete="off"
+        style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; background:var(--panel-2); color:var(--text); font-family:var(--sans); font-size:13px; box-sizing:border-box;">
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <span class="btn small primary" id="pwdModalOk">OK</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="sigModalOverlay" style="display:none;">
+  <div class="modal-box card-shadow">
+    <div class="modal-head">
+      <span>Signature settings</span>
+      <span class="btn small" id="sigModalClose">✕ Close</span>
+    </div>
+    <div class="modal-body" id="sigModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="stampModalOverlay" style="display:none;">
+  <div class="modal-box card-shadow" style="max-width:720px;">
+    <div class="modal-head">
+      <span id="stampModalTitle">Signature position</span>
+      <span class="btn small" id="stampModalCancel">✕ Cancel</span>
+    </div>
+    <div class="modal-body">
+      <div class="stamp-canvas-wrap" id="stampCanvasWrap">
+        <canvas id="stampCanvas"></canvas>
+        <img id="stampImgOverlay" class="stamp-img-overlay">
+        <div class="stamp-resize-handle" id="stampResizeHandle"></div>
+      </div>
+      <div class="sig-pos" style="grid-template-columns:repeat(3,1fr);">
+        <label>X %<input type="number" id="stampX" step="0.5"></label>
+        <label>Y % (từ mép dưới)<input type="number" id="stampY" step="0.5"></label>
+        <label>Width (pt)<input type="number" id="stampW" step="1"></label>
+      </div>
+      <label style="display:flex; flex-direction:column; gap:4px;" id="stampCommentWrap">
+        <span style="font-family:var(--mono); font-size:9.5px; letter-spacing:0.8px; text-transform:uppercase; color:var(--text-faint);">Comment</span>
+        <textarea id="stampCommentInput" rows="2" placeholder="Write down comment for revision..." style="width:100%; resize:vertical; font-family:var(--sans); font-size:12.5px; color:var(--text); background:var(--panel-2); border:1px solid var(--border); border-radius:7px; padding:8px 10px; outline:none;"></textarea>
+      </label>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <span class="btn small" id="stampNotSignBtn" style="background:var(--danger-dim); color:var(--danger); border-color:var(--danger);">Not Sign w/Comment</span>
+        <span class="btn small" id="stampDoneBtn" style="background:var(--teal); color:#fff; border-color:var(--teal); font-weight:700;">✓ Done</span>
+      </div>
+    </div>
+    <div class="modal-note">Drag signature to move it / Drag the bottom-right corner to resize it / Click <b>"Done"</b> for approval / Click <b>"Not Sign w/Comment"</b> for needed revision and write down comment</div>
+  </div>
+</div>
+
+<script>
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const COMPANY = "Hansoll Textile - Unisoll Vina Co., Ltd. (USV)";
+
+const DEFAULT_RECORDS = [
+  {
+    id: "sop001",
+    fileName: "QA-001_Document_Control_Procedure.pdf",
+    docNo: "USV/QA/SOP001",
+    titleEn: "Document Control Procedure",
+    titleVn: "Quy trinh kiem soat tai lieu",
+    issueDate: "Mar/01/2015",
+    issueNo: "04",
+    pages: "12"
+  },
+  {
+    id: "sop002",
+    fileName: "QA-002_Pre-Production_Procedure.pdf",
+    docNo: "USV/QA/SOP002",
+    titleEn: "Pre-Production Procedure",
+    titleVn: "Quy trinh chuan bi san xuat",
+    issueDate: "Mar/01/2015",
+    issueNo: "03",
+    pages: "12"
+  },
+  {
+    id: "sop003",
+    fileName: "QA-003_Pilot_run_Inspection_Procedure.pdf",
+    docNo: "USV/QA/SOP003",
+    titleEn: "Pilot Run Inspection Procedure",
+    titleVn: "Quy trinh kiem tra Pilot Run",
+    issueDate: "01/03/2015",
+    issueNo: "03",
+    pages: "10"
+  },
+  {
+    id: "sop004",
+    fileName: "",
+    docNo: "USV/QA/SOP004",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop005",
+    fileName: "",
+    docNo: "USV/QA/SOP005",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop006",
+    fileName: "",
+    docNo: "USV/QA/SOP006",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop007",
+    fileName: "",
+    docNo: "USV/QA/SOP007",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop008",
+    fileName: "",
+    docNo: "USV/QA/SOP008",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop009",
+    fileName: "",
+    docNo: "USV/QA/SOP009",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop010",
+    fileName: "",
+    docNo: "USV/QA/SOP010",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop011",
+    fileName: "",
+    docNo: "USV/QA/SOP011",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop012",
+    fileName: "",
+    docNo: "USV/QA/SOP012",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop013",
+    fileName: "",
+    docNo: "USV/QA/SOP013",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop014",
+    fileName: "",
+    docNo: "USV/QA/SOP014",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop015",
+    fileName: "",
+    docNo: "USV/QA/SOP015",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop016",
+    fileName: "",
+    docNo: "USV/QA/SOP016",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop017",
+    fileName: "",
+    docNo: "USV/QA/SOP017",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop018",
+    fileName: "",
+    docNo: "USV/QA/SOP018",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop019",
+    fileName: "",
+    docNo: "USV/QA/SOP019",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop020",
+    fileName: "",
+    docNo: "USV/QA/SOP020",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop021",
+    fileName: "",
+    docNo: "USV/QA/SOP021",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop022",
+    fileName: "",
+    docNo: "USV/QA/SOP022",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop023",
+    fileName: "",
+    docNo: "USV/QA/SOP023",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop024",
+    fileName: "",
+    docNo: "USV/QA/SOP024",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop025",
+    fileName: "",
+    docNo: "USV/QA/SOP025",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop026",
+    fileName: "",
+    docNo: "USV/QA/SOP026",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop027",
+    fileName: "",
+    docNo: "USV/QA/SOP027",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop028",
+    fileName: "",
+    docNo: "USV/QA/SOP028",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop029",
+    fileName: "",
+    docNo: "USV/QA/SOP029",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop030",
+    fileName: "",
+    docNo: "USV/QA/SOP030",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop031",
+    fileName: "",
+    docNo: "USV/QA/SOP031",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop032",
+    fileName: "",
+    docNo: "USV/QA/SOP032",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop033",
+    fileName: "",
+    docNo: "USV/QA/SOP033",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop034",
+    fileName: "",
+    docNo: "USV/QA/SOP034",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop035",
+    fileName: "",
+    docNo: "USV/QA/SOP035",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop036",
+    fileName: "",
+    docNo: "USV/QA/SOP036",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop037",
+    fileName: "",
+    docNo: "USV/QA/SOP037",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  },
+  {
+    id: "sop038",
+    fileName: "",
+    docNo: "USV/QA/SOP038",
+    titleEn: "Pending upload",
+    titleVn: "—",
+    issueDate: "—",
+    issueNo: "—",
+    pages: "—"
+  }
+];
+
+const STORAGE_KEY = "usv_sop_documents_v2";
+
+/* ================================================================
+   GOOGLE DRIVE BACKEND (Google Apps Script Web App)
+   Dán URL Web App bạn deploy từ Apps Script vào đây (dạng
+   https://script.google.com/macros/s/XXXXXXXX/exec). Để trống /
+   giữ nguyên placeholder nếu chỉ muốn lưu cục bộ trên từng máy
+   (localStorage + IndexedDB) như trước.
+   ================================================================ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbyXtTFVRvXS_mn622EOCCgQs0WIpayFIvJ3bI7pS6p72XEOFsaUSu6kb5mqURCyhTAL/exec';
+
+function isApiConfigured(){
+  return typeof API_URL === 'string' && API_URL.trim() !== '' && !API_URL.includes('PASTE_YOUR');
+}
+
+async function apiGet(params){
+  const url = new URL(API_URL);
+  Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+  const res = await fetch(url.toString());
+  return res.json();
+}
+async function apiPost(body){
+  // Content-Type text/plain avoids a CORS preflight (Apps Script Web Apps
+  // don't respond to OPTIONS requests), while Apps Script still reads the
+  // raw JSON body fine via e.postData.contents on the server side.
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+function updateSyncStatusBadge(state){
+  const el = document.getElementById('syncStatus');
+  if(!el) return;
+  if(state === 'synced'){
+    el.textContent = '● Synced with Google Drive';
+    el.style.color = 'var(--ok)'; el.style.borderColor = 'var(--ok)'; el.style.background = 'rgba(47,154,91,0.08)';
+  }else if(state === 'error'){
+    el.textContent = '● Drive sync error — using local cache';
+    el.style.color = 'var(--danger)'; el.style.borderColor = 'var(--danger)'; el.style.background = 'var(--danger-dim)';
+  }else if(state === 'loading'){
+    el.textContent = '● Connecting to Google Drive…';
+    el.style.color = 'var(--text-faint)'; el.style.borderColor = 'var(--border)'; el.style.background = 'var(--panel-2)';
+  }else{
+    el.textContent = '● Local only (Drive backend not configured)';
+    el.style.color = 'var(--text-faint)'; el.style.borderColor = 'var(--border)'; el.style.background = 'var(--panel-2)';
+  }
+}
+
+let records = DEFAULT_RECORDS.slice();
+let activeId = null;
+let currentObjectUrl = null;
+
+async function loadRecords(){
+  if(!isApiConfigured()){
+    updateSyncStatusBadge('local');
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return DEFAULT_RECORDS.slice();
+  }
+  updateSyncStatusBadge('loading');
+  try{
+    const res = await apiGet({ action: 'listRecords' });
+    if(res && res.ok && Array.isArray(res.records)){
+      updateSyncStatusBadge('synced');
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(res.records)); }catch(e){}
+      return res.records.length ? res.records : DEFAULT_RECORDS.slice();
+    }
+    throw new Error((res && res.error) || 'Unexpected response from backend');
+  }catch(err){
+    console.error('Could not reach Google Drive backend, falling back to local cache:', err);
+    updateSyncStatusBadge('error');
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return DEFAULT_RECORDS.slice();
+  }
+}
+
+async function saveRecords(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }catch(e){}
+  if(!isApiConfigured()) return;
+  try{
+    const res = await apiPost({ action: 'saveRecords', records });
+    updateSyncStatusBadge(res && res.ok ? 'synced' : 'error');
+  }catch(err){
+    console.error('Could not sync records to Google Drive:', err);
+    updateSyncStatusBadge('error');
+  }
+}
+
+/* ---------- base64 <-> Blob helpers (used by the Drive-backed PDF storage) ---------- */
+function blobToBase64(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+function base64ToBlob(base64, mime){
+  const byteChars = atob(base64);
+  const bytes = new Uint8Array(byteChars.length);
+  for(let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+  return new Blob([bytes], { type: mime || 'application/pdf' });
+}
+
+/* ---------- IndexedDB: local fallback store for the PDF binary per document id
+   (only used when API_URL is not configured — otherwise PDFs live on Google Drive) ---------- */
+const DB_NAME = 'usv_sop_files_db';
+const STORE_NAME = 'pdfs';
+function openPdfDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(STORE_NAME); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function savePdfBlob(id, file){
+  if(isApiConfigured()){
+    try{
+      const base64 = await blobToBase64(file);
+      const res = await apiPost({ action: 'savePdf', id, base64 });
+      updateSyncStatusBadge(res && res.ok ? 'synced' : 'error');
+      return;
+    }catch(err){
+      console.error('Could not upload PDF to Google Drive:', err);
+      updateSyncStatusBadge('error');
+      return;
+    }
+  }
+  const db = await openPdfDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(file, id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function getPdfBlob(id){
+  if(isApiConfigured()){
+    try{
+      const res = await apiGet({ action: 'getPdf', id });
+      if(res && res.ok){
+        updateSyncStatusBadge('synced');
+        return res.base64 ? base64ToBlob(res.base64, 'application/pdf') : null;
+      }
+      throw new Error((res && res.error) || 'Unexpected response from backend');
+    }catch(err){
+      console.error('Could not fetch PDF from Google Drive:', err);
+      updateSyncStatusBadge('error');
+      return null;
+    }
+  }
+  const db = await openPdfDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function deletePdfBlob(id){
+  if(isApiConfigured()){
+    try{ await apiPost({ action: 'deletePdf', id }); }catch(e){ console.error(e); }
+    return;
+  }
+  try{
+    const db = await openPdfDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }catch(e){}
+}
+
+/* ---------- Signature settings: image + insert position per role, saved on this device ---------- */
+const SIG_STORAGE_KEY = 'usv_sig_config_v1';
+const SIG_ROLES = [
+  { key: 'edit',    fieldLabel: 'Edit By',     role: 'Staff' },
+  { key: 'check',   fieldLabel: 'Check By',    role: 'Manager' },
+  { key: 'approve', fieldLabel: 'Approved By', role: 'General Director' }
+];
+function defaultSigConfig(){
+  return {
+    edit:    { image: null, mime: null, page: 'last', xPct: 8,  yPct: 8, widthPx: 90 },
+    check:   { image: null, mime: null, page: 'last', xPct: 40, yPct: 8, widthPx: 90 },
+    approve: { image: null, mime: null, page: 'last', xPct: 72, yPct: 8, widthPx: 90 }
+  };
+}
+function loadSigConfig(){
+  const cfg = defaultSigConfig();
+  try{
+    const raw = localStorage.getItem(SIG_STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      SIG_ROLES.forEach(({key}) => { if(parsed[key]) Object.assign(cfg[key], parsed[key]); });
+    }
+  }catch(e){}
+  return cfg;
+}
+function saveSigConfig(){ localStorage.setItem(SIG_STORAGE_KEY, JSON.stringify(sigConfig)); }
+let sigConfig = loadSigConfig();
+
+function fileToDataURL(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+// Always normalize uploaded signature images to PNG via canvas — avoids pdf-lib
+// embed errors caused by unsupported/mis-detected source formats (webp, gif, bmp, etc).
+function imageFileToPngDataURL(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('Không đọc được file hình ảnh.'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+function getImageNaturalSize(dataUrl){
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth || 90, h: img.naturalHeight || 40 });
+    img.onerror = () => resolve({ w: 90, h: 40 });
+    img.src = dataUrl;
+  });
+}
+function dataURLToUint8Array(dataUrl){
+  const base64 = dataUrl.split(',')[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+const sigModalOverlay = document.getElementById('sigModalOverlay');
+const sigModalBody = document.getElementById('sigModalBody');
+
+function renderSigModal(){
+  sigModalBody.innerHTML = SIG_ROLES.map(({key, fieldLabel, role}) => {
+    const cfg = sigConfig[key];
+    return `
+      <div class="sig-row">
+        <div class="sig-thumb" data-thumb="${key}">
+          ${cfg.image ? `<img src="${cfg.image}">` : `<span>No image</span>`}
+        </div>
+        <div class="sig-fields">
+          <div class="sig-title">${fieldLabel} <span class="sig-role">(${role})</span></div>
+          <label class="btn small" style="display:inline-block; width:fit-content;">
+            Upload image
+            <input type="file" accept="image/*" class="sig-upload" data-key="${key}" style="display:none;">
+          </label>
+          <div class="sig-pos">
+            <label>Page<input type="text" class="sig-page" data-key="${key}" value="${cfg.page}" placeholder="last"></label>
+            <label>X %<input type="number" class="sig-x" data-key="${key}" value="${cfg.xPct}" step="0.5"></label>
+            <label>Y %<input type="number" class="sig-y" data-key="${key}" value="${cfg.yPct}" step="0.5"></label>
+            <label>Width (pt)<input type="number" class="sig-w" data-key="${key}" value="${cfg.widthPx}" step="1"></label>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  sigModalBody.querySelectorAll('.sig-upload').forEach(input => {
+    input.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      const key = input.dataset.key;
+      if(!file) return;
+      try{
+        const pngDataUrl = await imageFileToPngDataURL(file);
+        sigConfig[key].image = pngDataUrl;
+        sigConfig[key].mime = 'image/png';
+        saveSigConfig();
+        renderSigModal();
+      }catch(err){
+        alert('Không đọc được file hình. Vui lòng chọn lại file PNG/JPG khác.');
+      }
+    });
+  });
+  sigModalBody.querySelectorAll('.sig-page').forEach(input => {
+    input.addEventListener('change', () => { sigConfig[input.dataset.key].page = input.value.trim() || 'last'; saveSigConfig(); });
+  });
+  sigModalBody.querySelectorAll('.sig-x').forEach(input => {
+    input.addEventListener('change', () => { sigConfig[input.dataset.key].xPct = parseFloat(input.value) || 0; saveSigConfig(); });
+  });
+  sigModalBody.querySelectorAll('.sig-y').forEach(input => {
+    input.addEventListener('change', () => { sigConfig[input.dataset.key].yPct = parseFloat(input.value) || 0; saveSigConfig(); });
+  });
+  sigModalBody.querySelectorAll('.sig-w').forEach(input => {
+    input.addEventListener('change', () => { sigConfig[input.dataset.key].widthPx = parseFloat(input.value) || 90; saveSigConfig(); });
+  });
+}
+
+function openSigModal(){ renderSigModal(); sigModalOverlay.style.display = 'flex'; }
+function closeSigModal(){ sigModalOverlay.style.display = 'none'; }
+document.getElementById('sigSettingsBtn').addEventListener('click', openSigModal);
+document.getElementById('sigModalClose').addEventListener('click', closeSigModal);
+sigModalOverlay.addEventListener('click', (e) => { if(e.target === sigModalOverlay) closeSigModal(); });
+
+/* ---------- Embed the configured signature image into the actual PDF at given position, auto-save ---------- */
+async function embedSignatureIntoPdf(docId, key, xPct, yPct, widthPts, pageIndexOverride){
+  const cfg = sigConfig[key];
+  const blob = await getPdfBlob(docId);
+  if(!blob) throw new Error('Tài liệu này chưa có file PDF đính kèm.');
+  const pdfBytes = await blob.arrayBuffer();
+  const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes, { ignoreEncryption: true, updateMetadata: false });
+  const pages = pdfDoc.getPages();
+  let pageIndex = pageIndexOverride;
+  if(pageIndex == null || pageIndex < 0 || pageIndex >= pages.length){
+    pageIndex = pages.length - 1;
+    if(cfg.page && cfg.page !== 'last'){
+      const n = parseInt(cfg.page, 10);
+      if(!isNaN(n) && n >= 1 && n <= pages.length) pageIndex = n - 1;
+    }
+  }
+  const page = pages[pageIndex];
+  const imgBytes = dataURLToUint8Array(cfg.image);
+
+  let img;
+  try{
+    img = await pdfDoc.embedPng(imgBytes);
+  }catch(e1){
+    try{
+      img = await pdfDoc.embedJpg(imgBytes);
+    }catch(e2){
+      throw new Error('Định dạng hình chữ ký không được hỗ trợ. Vui lòng tải lại hình PNG hoặc JPG trong Signature settings.');
+    }
+  }
+
+  const pw = page.getWidth(), ph = page.getHeight();
+  const w = Number(widthPts) || 90;
+  const h = img.height * (w / img.width);
+  const x = (Number(xPct) || 0) / 100 * pw;
+  const y = (Number(yPct) || 0) / 100 * ph;
+  page.drawImage(img, { x, y, width: w, height: h });
+
+  const newBytes = await pdfDoc.save();
+  const newBlob = new Blob([newBytes], { type: 'application/pdf' });
+  await savePdfBlob(docId, newBlob);
+  return pageIndex;
+}
+
+/* ---------- Position-adjuster modal: drag/resize the signature directly on the PDF page,
+   only "Done" finalizes the stamp and turns the field green ---------- */
+const stampModalOverlay = document.getElementById('stampModalOverlay');
+function closeStampModal(){
+  stampModalOverlay.style.display = 'none';
+  document.onmousemove = null; document.ontouchmove = null;
+  document.onmouseup = null; document.ontouchend = null;
+}
+document.getElementById('stampModalCancel').addEventListener('click', closeStampModal);
+stampModalOverlay.addEventListener('click', (e) => { if(e.target === stampModalOverlay) closeStampModal(); });
+
+const ROLE_PASSWORDS = { edit: 'nguyenht2026', check: 'kimjs2026', approve: 'seojb2026' };
+const UPLOAD_PASSWORD = 'nguyenht2026';
+
+/* Custom password modal — clicking OK is a genuine user-gesture click, so code
+   run inside onSuccess (e.g. opening a hidden file input) is not blocked by
+   the browser, unlike calling .click() right after a native prompt()/confirm(). */
+function askPassword(title, correctPassword, onSuccess){
+  const overlay = document.getElementById('pwdModalOverlay');
+  const input = document.getElementById('pwdModalInput');
+  const okBtn = document.getElementById('pwdModalOk');
+  const cancelBtn = document.getElementById('pwdModalCancel');
+
+  document.getElementById('pwdModalTitle').textContent = title;
+  input.value = '';
+  overlay.style.display = 'flex';
+  setTimeout(() => input.focus(), 50);
+
+  function cleanup(){
+    overlay.style.display = 'none';
+    okBtn.removeEventListener('click', onOk);
+    cancelBtn.removeEventListener('click', onCancel);
+    input.removeEventListener('keydown', onKeydown);
+  }
+  function onOk(){
+    const val = input.value;
+    cleanup();
+    if(val !== correctPassword){
+      alert('Incorrect password. You are not authorized for this action.');
+      return;
+    }
+    onSuccess();
+  }
+  function onCancel(){ cleanup(); }
+  function onKeydown(e){
+    if(e.key === 'Enter'){ e.preventDefault(); onOk(); }
+    else if(e.key === 'Escape'){ onCancel(); }
+  }
+  okBtn.addEventListener('click', onOk);
+  cancelBtn.addEventListener('click', onCancel);
+  input.addEventListener('keydown', onKeydown);
+}
+
+async function openStampModal(key){
+  if(!activeId) return;
+  const r = records.find(x => x.id === activeId);
+  if(!r) return;
+
+  const meta0 = SIG_ROLES.find(s => s.key === key);
+  const pwd = prompt(`Nhập mật khẩu để ký mục "${meta0.fieldLabel} (${meta0.role})":`);
+  if(pwd === null) return; // user cancelled
+  if(pwd !== ROLE_PASSWORDS[key]){
+    alert('Sai mật khẩu. Bạn không có thẩm quyền ký vào mục này.');
+    return;
+  }
+
+  const cfg = sigConfig[key];
+  const meta = SIG_ROLES.find(s => s.key === key);
+  if(!cfg.image){
+    alert(`Chưa có hình chữ ký cho "${meta.role}". Vui lòng bấm "🖊 Signature settings" để tải hình lên trước.`);
+    openSigModal();
+    return;
+  }
+  const blob = await getPdfBlob(activeId);
+  if(!blob){
+    alert('Tài liệu này chưa có file PDF đính kèm.');
+    return;
+  }
+
+  document.getElementById('stampModalTitle').textContent = `${meta.fieldLabel} (${meta.role})`;
+  stampModalOverlay.style.display = 'flex';
+  document.getElementById('stampCommentInput').value = '';
+
+  let pdf;
+  try{
+    const arrBuf = await blob.arrayBuffer();
+    pdf = await pdfjsLib.getDocument({ data: arrBuf }).promise;
+  }catch(err){
+    console.error(err);
+    alert('Không đọc được nội dung PDF để xem trước.');
+    closeStampModal();
+    return;
+  }
+
+  let pageNum = pdf.numPages;
+  if(cfg.page && cfg.page !== 'last'){
+    const n = parseInt(cfg.page, 10);
+    if(!isNaN(n) && n >= 1 && n <= pdf.numPages) pageNum = n;
+  }
+  const page = await pdf.getPage(pageNum);
+  const baseViewport = page.getViewport({ scale: 1 });
+  const targetWidth = Math.min(640, baseViewport.width);
+  const scale = targetWidth / baseViewport.width;
+  const viewport = page.getViewport({ scale });
+
+  const canvas = document.getElementById('stampCanvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+  const wrap = document.getElementById('stampCanvasWrap');
+  wrap.style.width = viewport.width + 'px';
+  wrap.style.height = viewport.height + 'px';
+
+  const overlayImg = document.getElementById('stampImgOverlay');
+  overlayImg.src = cfg.image;
+  const handle = document.getElementById('stampResizeHandle');
+
+  const naturalDims = await getImageNaturalSize(cfg.image);
+  const aspect = naturalDims.h / naturalDims.w;
+
+  let curXPct = Number(cfg.xPct) || 0;
+  let curYPct = Number(cfg.yPct) || 0;
+  let curWidthPts = Number(cfg.widthPx) || 90;
+
+  const xInput = document.getElementById('stampX');
+  const yInput = document.getElementById('stampY');
+  const wInput = document.getElementById('stampW');
+
+  function syncOverlayFromValues(){
+    const overlayWpx = curWidthPts * scale;
+    const overlayHpx = overlayWpx * aspect;
+    const leftPx = (curXPct / 100) * viewport.width;
+    const bottomPx = (curYPct / 100) * viewport.height;
+    const topPx = viewport.height - bottomPx - overlayHpx;
+    overlayImg.style.left = leftPx + 'px';
+    overlayImg.style.top = topPx + 'px';
+    overlayImg.style.width = overlayWpx + 'px';
+    overlayImg.style.height = overlayHpx + 'px';
+    handle.style.left = (leftPx + overlayWpx - 6) + 'px';
+    handle.style.top = (topPx + overlayHpx - 6) + 'px';
+    xInput.value = curXPct.toFixed(1);
+    yInput.value = curYPct.toFixed(1);
+    wInput.value = curWidthPts.toFixed(0);
+  }
+  function valuesFromOverlayPx(leftPx, topPx, overlayWpx){
+    const overlayHpx = overlayWpx * aspect;
+    leftPx = Math.max(0, Math.min(viewport.width - overlayWpx, leftPx));
+    topPx = Math.max(0, Math.min(viewport.height - overlayHpx, topPx));
+    curXPct = (leftPx / viewport.width) * 100;
+    curYPct = ((viewport.height - topPx - overlayHpx) / viewport.height) * 100;
+    curWidthPts = overlayWpx / scale;
+    return { leftPx, topPx };
+  }
+  syncOverlayFromValues();
+
+  let dragging = false, dragStartX = 0, dragStartY = 0, startLeft = 0, startTop = 0;
+  let resizing = false, resizeStartX = 0, resizeStartW = 0;
+
+  function onImgDown(e){
+    dragging = true;
+    const evt = e.touches ? e.touches[0] : e;
+    dragStartX = evt.clientX; dragStartY = evt.clientY;
+    startLeft = parseFloat(overlayImg.style.left) || 0;
+    startTop = parseFloat(overlayImg.style.top) || 0;
+    e.preventDefault();
+  }
+  function onHandleDown(e){
+    resizing = true;
+    const evt = e.touches ? e.touches[0] : e;
+    resizeStartX = evt.clientX;
+    resizeStartW = overlayImg.offsetWidth;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  function onDocMove(e){
+    if(!dragging && !resizing) return;
+    const evt = e.touches ? e.touches[0] : e;
+    if(dragging){
+      const dx = evt.clientX - dragStartX, dy = evt.clientY - dragStartY;
+      const pos = valuesFromOverlayPx(startLeft + dx, startTop + dy, overlayImg.offsetWidth);
+      overlayImg.style.left = pos.leftPx + 'px';
+      overlayImg.style.top = pos.topPx + 'px';
+      handle.style.left = (pos.leftPx + overlayImg.offsetWidth - 6) + 'px';
+      handle.style.top = (pos.topPx + overlayImg.offsetHeight - 6) + 'px';
+      xInput.value = curXPct.toFixed(1); yInput.value = curYPct.toFixed(1);
+    }
+    if(resizing){
+      const dx = evt.clientX - resizeStartX;
+      const newW = Math.max(20, resizeStartW + dx);
+      curWidthPts = newW / scale;
+      syncOverlayFromValues();
+    }
+  }
+  function onDocUp(){ dragging = false; resizing = false; }
+
+  overlayImg.onmousedown = onImgDown; overlayImg.ontouchstart = onImgDown;
+  handle.onmousedown = onHandleDown; handle.ontouchstart = onHandleDown;
+  document.onmousemove = onDocMove; document.ontouchmove = onDocMove;
+  document.onmouseup = onDocUp; document.ontouchend = onDocUp;
+
+  xInput.oninput = () => { curXPct = parseFloat(xInput.value) || 0; syncOverlayFromValues(); };
+  yInput.oninput = () => { curYPct = parseFloat(yInput.value) || 0; syncOverlayFromValues(); };
+  wInput.oninput = () => { curWidthPts = parseFloat(wInput.value) || 0; syncOverlayFromValues(); };
+
+  const doneBtn = document.getElementById('stampDoneBtn');
+  doneBtn.onclick = async () => {
+    const original = doneBtn.textContent;
+    doneBtn.textContent = 'Đang lưu...';
+    try{
+      await embedSignatureIntoPdf(activeId, key, curXPct, curYPct, curWidthPts, pageNum - 1);
+      cfg.xPct = curXPct; cfg.yPct = curYPct; cfg.widthPx = curWidthPts;
+      saveSigConfig();
+      r.sig = r.sig || {};
+      r.sig[key] = true;
+      if(r.comments && r.comments[key]) delete r.comments[key];
+      saveRecords();
+      const fieldEl = document.querySelector(`.sig-field[data-field="${key}"]`);
+      if(fieldEl){ fieldEl.classList.add('signed'); fieldEl.classList.remove('commented'); }
+      closeStampModal();
+      renderList(document.getElementById('searchInput').value);
+      renderToc();
+      if(activeId === r.id) loadPdfPreview(activeId);
+    }catch(err){
+      console.error('Signature insert failed:', err);
+      alert('Có lỗi khi chèn chữ ký vào PDF: ' + (err && err.message ? err.message : err));
+    }
+    doneBtn.textContent = original;
+  };
+
+  const notSignBtn = document.getElementById('stampNotSignBtn');
+  notSignBtn.onclick = () => {
+    const commentText = document.getElementById('stampCommentInput').value.trim();
+    if(!commentText){
+      alert('Vui lòng nhập Comment trước khi bấm "Not Sign w/Comment".');
+      return;
+    }
+    r.comments = r.comments || {};
+    r.comments[key] = { text: commentText, role: meta.role, date: new Date().toISOString().slice(0,10) };
+    r.sig = r.sig || {};
+    r.sig[key] = false;
+    saveRecords();
+    closeStampModal();
+    if(activeId === r.id) selectRecord(activeId);
+  };
+}
+
+/* ---------- Table of contents (left column) — grouped by folder ---------- */
+const tocList = document.getElementById('tocList');
+
+const FOLDERS = [
+  { key: 'QA',   label: '1. QA' },
+  { key: 'QC',   label: '2. Factory' },
+  { key: 'PSC',  label: '3. PSC' },
+  { key: 'MOLD', label: '4. Mold' },
+  { key: 'MC',   label: '5. Mechanic' },
+  { key: 'LAB',  label: '6. LAB' },
+  { key: 'PC',   label: '7. PC' },
+  { key: 'BP',   label: '8. BP' }
+];
+
+// Which folder a document belongs to, based on the 2nd segment of its Document Code (e.g. USV/QA/SOP001 -> "QA")
+function getFolderKey(docNo){
+  if(!docNo) return null;
+  const seg = docNo.toUpperCase().split('/')[1];
+  return seg || null;
+}
+
+let openFolders = new Set(['QA']); // folders expanded by default
+
+function renderToc(){
+  const grouped = {};
+  FOLDERS.forEach(f => grouped[f.key] = []);
+  const other = [];
+  records.forEach(r => {
+    const key = getFolderKey(r.docNo);
+    if(key && grouped[key]) grouped[key].push(r);
+    else other.push(r);
+  });
+
+  const folderHtml = FOLDERS.map(f => {
+    const docs = grouped[f.key];
+    const hasActive = docs.some(r => r.id === activeId);
+    if(hasActive) openFolders.add(f.key);
+    const isOpen = openFolders.has(f.key);
+    const itemsHtml = docs.length
+      ? docs.map(r => `<div class="toc-item ${r.id===activeId?'active':''}" data-id="${r.id}" title="${r.titleEn}">${r.docNo}</div>`).join('')
+      : `<div class="toc-empty">No documents</div>`;
+    return `
+      <div class="toc-folder ${isOpen?'open':''} ${hasActive?'has-active':''}" data-folder="${f.key}">
+        <div class="toc-folder-head" data-folder-toggle="${f.key}">
+          <span class="chev">▶</span><span class="fname">${f.label}</span><span class="fcount">${docs.length}</span>
+        </div>
+        <div class="toc-sub">${itemsHtml}</div>
+      </div>`;
+  }).join('');
+
+  const otherHtml = other.length ? `
+    <div class="toc-folder ${openFolders.has('OTHER')?'open':''} ${other.some(r=>r.id===activeId)?'has-active':''}" data-folder="OTHER">
+      <div class="toc-folder-head" data-folder-toggle="OTHER">
+        <span class="chev">▶</span><span class="fname">Other</span><span class="fcount">${other.length}</span>
+      </div>
+      <div class="toc-sub">${other.map(r => `<div class="toc-item ${r.id===activeId?'active':''}" data-id="${r.id}" title="${r.titleEn}">${r.docNo}</div>`).join('')}</div>
+    </div>` : '';
+
+  tocList.innerHTML = folderHtml + otherHtml;
+
+  tocList.querySelectorAll('.toc-item').forEach(el => {
+    el.addEventListener('click', () => {
+      if(el.dataset.id === activeId) deselectRecord();
+      else selectRecord(el.dataset.id);
+    });
+  });
+  tocList.querySelectorAll('[data-folder-toggle]').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.folderToggle;
+      if(openFolders.has(key)) openFolders.delete(key);
+      else openFolders.add(key);
+      renderToc();
+    });
+  });
+}
+
+/* ---------- File list render (middle column) ---------- */
+const listBody = document.getElementById('fileListBody');
+function escapeAttr(s){
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'&#10;');
+}
+
+const STATUS_FIELD_LABELS = { edit: 'Edit By (Staff)', check: 'Check By (Manager)', approve: 'Approved By (General Director)' };
+
+function computeStatus(r){
+  const sig = r.sig || {};
+  const comments = r.comments || {};
+  const keys = ['edit','check','approve'];
+  const signedCount = keys.filter(k => sig[k] === true).length;
+  const hasAnyComment = keys.some(k => comments[k] && comments[k].text);
+
+  if(signedCount === 3){
+    return { label: 'Approved', cls: 'approved', tooltip: '' };
+  }
+  if(signedCount === 0 && !hasAnyComment){
+    return { label: 'Waiting', cls: 'waiting', tooltip: '' };
+  }
+  const lines = keys.map(k => {
+    if(sig[k] === true) return `${STATUS_FIELD_LABELS[k]}: Signed`;
+    if(comments[k] && comments[k].text) return `${STATUS_FIELD_LABELS[k]}: Revision requested — "${comments[k].text}"`;
+    return `${STATUS_FIELD_LABELS[k]}: Pending`;
+  });
+  return { label: 'Partial', cls: 'partial', tooltip: lines.join('\n') };
+}
+
+function renderList(filter){
+  const q = (filter||'').trim().toLowerCase();
+  const filtered = records.filter(r =>
+    !q || r.docNo.toLowerCase().includes(q) || r.titleEn.toLowerCase().includes(q) || r.titleVn.toLowerCase().includes(q)
+  );
+  if(filtered.length === 0){
+    listBody.innerHTML = `<div class="fl-empty">No matching documents.</div>`;
+    return;
+  }
+  listBody.innerHTML = filtered.map(r => {
+    const st = computeStatus(r);
+    return `
+    <div class="fl-row ${r.id===activeId?'active':''}" data-id="${r.id}">
+      <div class="pdf-icon">PDF</div>
+      <div class="fname">${r.docNo}</div>
+      <div class="cell">${r.titleEn}</div>
+      <div class="cell"><span class="status-badge ${st.cls}"${st.tooltip ? ` title="${escapeAttr(st.tooltip)}"` : ''}>${st.label}</span></div>
+      <div class="del-btn" data-del="${r.id}" title="Delete document">✕</div>
+    </div>
+  `;
+  }).join('');
+
+  listBody.querySelectorAll('.fl-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if(e.target.closest('.del-btn')) return;
+      if(row.dataset.id === activeId) deselectRecord();
+      else selectRecord(row.dataset.id);
+    });
+  });
+  listBody.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      askPassword('Enter password to delete this document', UPLOAD_PASSWORD, () => {
+        const id = btn.dataset.del;
+        if(!confirm('Remove this document from the list?')) return;
+        records = records.filter(r => r.id !== id);
+        saveRecords();
+        deletePdfBlob(id);
+        if(activeId === id){
+          deselectRecord();
+        }
+        renderList(document.getElementById('searchInput').value);
+        renderToc();
+      });
+    });
+  });
+}
+
+/* ---------- Right column: PDF preview ---------- */
+function updatePdfDownloadBtn(id){
+  const downloadBtn = document.getElementById('pdfDownloadBtn');
+  if(!downloadBtn) return;
+  const r = records.find(x => x.id === id);
+  const st = r ? computeStatus(r) : null;
+  downloadBtn.style.display = (st && st.label === 'Approved') ? 'inline-block' : 'none';
+}
+
+document.getElementById('pdfDownloadBtn').addEventListener('click', () => {
+  if(!currentObjectUrl || !activeId) return;
+  const r = records.find(x => x.id === activeId);
+  const a = document.createElement('a');
+  a.href = currentObjectUrl;
+  a.download = (r && r.fileName) ? r.fileName : `${(r && r.docNo) || 'document'}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+async function loadPdfPreview(id){
+  const body = document.getElementById('pdfPanelBody');
+  body.innerHTML = `<div class="pdf-empty">Loading…</div>`;
+  if(currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+  updatePdfDownloadBtn(id);
+  try{
+    const blob = await getPdfBlob(id);
+    if(blob){
+      currentObjectUrl = URL.createObjectURL(blob);
+      body.innerHTML = `<iframe src="${currentObjectUrl}" class="pdf-frame"></iframe>`;
+      updatePdfDownloadBtn(id);
+    }else{
+      body.innerHTML = `
+        <div class="pdf-empty">
+          <div>No PDF content stored for this document yet.</div>
+          <label class="btn small primary" style="display:inline-block;">
+            Attach PDF
+            <input type="file" accept="application/pdf" id="attachPdfInput" style="display:none;">
+          </label>
+        </div>`;
+      document.getElementById('attachPdfInput').addEventListener('change', onAttachPdf);
+    }
+  }catch(err){
+    body.innerHTML = `<div class="pdf-empty">Could not load preview.</div>`;
+  }
+}
+
+async function onAttachPdf(e){
+  const file = e.target.files[0];
+  if(!file || !activeId) return;
+  const info = await extractPdfInfo(file);
+  const r = records.find(x => x.id === activeId);
+  if(r){
+    if(!r.fileName) r.fileName = info.fileName;
+    if(r.titleEn === 'Pending upload' || !r.titleEn) r.titleEn = info.titleEn;
+    if(!r.titleVn || r.titleVn === '—') r.titleVn = info.titleVn;
+    r.issueDate = info.issueDate;
+    r.issueNo = info.issueNo;
+    r.pages = info.pages;
+    r.sig = {}; // reset signature status: this is a fresh PDF with no stamps yet
+    r.locked = false; // this is the initial upload for this document — allow editing Document Code/Name
+  }
+  await savePdfBlob(activeId, file);
+  saveRecords();
+  selectRecord(activeId);
+}
+
+function selectRecord(id){
+  // Lock Document Code / Document Name / Issue No. editing for the document we're navigating away from,
+  // unless it's still awaiting its very first PDF upload/attachment.
+  if(activeId && activeId !== id){
+    const prev = records.find(x => x.id === activeId);
+    if(prev && prev.locked === false){
+      prev.locked = true;
+      saveRecords();
+    }
+  }
+  activeId = id;
+  const r = records.find(x => x.id === id);
+  if(!r) return;
+
+  const signed = r.sig || {};
+  const cmts = r.comments || {};
+  const editable = r.locked === false;
+  document.getElementById('infoFields').innerHTML = `
+    <div class="field-grid">
+      <div class="info-row row-1">
+        <div class="field" ${editable ? 'style="cursor:pointer;"' : ''} id="docNoField" title="${editable ? 'Click để sửa Document No. thủ công nếu không khớp với tiêu đề PDF' : 'Document Code chỉ có thể chỉnh sửa tại thời điểm upload file mới'}"><span class="k">Document Code</span><span class="v mono">${r.docNo}</span></div>
+        <div class="field" ${editable ? 'style="cursor:pointer;"' : ''} id="titleEnField" title="${editable ? 'Click để sửa Document Name thủ công nếu không khớp với tiêu đề PDF' : 'Document Name chỉ có thể chỉnh sửa tại thời điểm upload file mới'}"><span class="k">Document Name</span><span class="v">${r.titleEn}</span></div>
+      </div>
+      <div class="info-row row-2">
+        <div class="field" ${editable ? 'style="cursor:pointer;"' : ''} id="issueDateField" title="${editable ? 'Click để sửa Issue Date thủ công nếu không khớp với tiêu đề PDF' : 'Issue Date chỉ có thể chỉnh sửa tại thời điểm upload file mới'}"><span class="k">Issue Date</span><span class="v mono">${r.issueDate}</span></div>
+        <div class="field" ${editable ? 'style="cursor:pointer;"' : ''} id="issueNoField" title="${editable ? 'Click để sửa Issue No. thủ công nếu không khớp với tiêu đề PDF' : 'Issue No. chỉ có thể chỉnh sửa tại thời điểm upload file mới'}"><span class="k">Issue No.</span><span class="v mono">${r.issueNo}</span></div>
+        <div class="field"><span class="k">Page</span><span class="v mono">${r.pages}</span></div>
+      </div>
+      <div class="info-row row-3">
+        <div class="field sig-field ${signed.edit ? 'signed' : (cmts.edit && cmts.edit.text ? 'commented' : '')}" data-field="edit" title="${cmts.edit && cmts.edit.text && !signed.edit ? escapeAttr(cmts.edit.text) : 'Click để chèn chữ ký Staff vào PDF'}"><span class="k">Edit By</span><span class="v">Staff</span></div>
+        <div class="field sig-field ${signed.check ? 'signed' : (cmts.check && cmts.check.text ? 'commented' : '')}" data-field="check" title="${cmts.check && cmts.check.text && !signed.check ? escapeAttr(cmts.check.text) : 'Click để chèn chữ ký Manager vào PDF'}"><span class="k">Check By</span><span class="v">Manager</span></div>
+        <div class="field sig-field ${signed.approve ? 'signed' : (cmts.approve && cmts.approve.text ? 'commented' : '')}" data-field="approve" title="${cmts.approve && cmts.approve.text && !signed.approve ? escapeAttr(cmts.approve.text) : 'Click để chèn chữ ký General Director vào PDF'}"><span class="k">Approved By</span><span class="v">General Director</span></div>
+      </div>
+    </div>
+  `;
+  document.getElementById('infoFields').querySelectorAll('.sig-field').forEach(el => {
+    el.addEventListener('click', () => openStampModal(el.dataset.field));
+  });
+  const issueNoField = document.getElementById('issueNoField');
+  if(issueNoField && editable){
+    issueNoField.addEventListener('click', () => {
+      const val = prompt('Nhập Issue No. (Lần ban hành) cho tài liệu này:', r.issueNo === '—' ? '' : r.issueNo);
+      if(val === null) return;
+      const trimmed = val.trim();
+      if(!trimmed) return;
+      r.issueNo = trimmed;
+      saveRecords();
+      selectRecord(activeId);
+    });
+  }
+  const issueDateField = document.getElementById('issueDateField');
+  if(issueDateField && editable){
+    issueDateField.addEventListener('click', () => {
+      const val = prompt('Nhập Issue Date (Ngày ban hành) cho tài liệu này:', r.issueDate === '—' ? '' : r.issueDate);
+      if(val === null) return;
+      const trimmed = val.trim();
+      if(!trimmed) return;
+      r.issueDate = trimmed;
+      saveRecords();
+      selectRecord(activeId);
+    });
+  }
+  const docNoField = document.getElementById('docNoField');
+  if(docNoField && editable){
+    docNoField.addEventListener('click', () => {
+      const val = prompt('Nhập Document No. (Số tài liệu) cho tài liệu này:', r.docNo === '—' ? '' : r.docNo);
+      if(val === null) return;
+      const trimmed = val.trim();
+      if(!trimmed) return;
+      r.docNo = trimmed;
+      saveRecords();
+      selectRecord(activeId);
+    });
+  }
+  const titleEnField = document.getElementById('titleEnField');
+  if(titleEnField && editable){
+    titleEnField.addEventListener('click', () => {
+      const val = prompt('Nhập Document Name (tiếng Anh) cho tài liệu này:', r.titleEn === '—' ? '' : r.titleEn);
+      if(val === null) return;
+      const trimmed = val.trim();
+      if(!trimmed) return;
+      r.titleEn = trimmed;
+      saveRecords();
+      selectRecord(activeId);
+    });
+  }
+  document.getElementById('clearSelectionBtn').style.display = 'inline-block';
+  renderList(document.getElementById('searchInput').value);
+  renderToc();
+  loadPdfPreview(id);
+}
+
+/* ---------- Deselect: clear the current selection, no PDF chosen ---------- */
+function deselectRecord(){
+  // Lock Document Code / Document Name / Issue No. editing for the document we're navigating away from,
+  // unless it's still awaiting its very first PDF upload/attachment.
+  if(activeId){
+    const prev = records.find(x => x.id === activeId);
+    if(prev && prev.locked === false){
+      prev.locked = true;
+      saveRecords();
+    }
+  }
+  activeId = null;
+  if(currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+  document.getElementById('infoFields').innerHTML = `<div class="info-empty">— Select a document below to view details —</div>`;
+  document.getElementById('pdfPanelBody').innerHTML = `<div class="pdf-empty">Select a document to preview its PDF content.</div>`;
+  document.getElementById('pdfDownloadBtn').style.display = 'none';
+  document.getElementById('clearSelectionBtn').style.display = 'none';
+  renderList(document.getElementById('searchInput').value);
+  renderToc();
+}
+document.getElementById('clearSelectionBtn').addEventListener('click', deselectRecord);
+
+/* ---------- Upload new file(s) — opens native file picker directly, supports multiple files ---------- */
+const uploadBtn = document.getElementById('uploadBtn');
+const pdfInputMulti = document.getElementById('pdfInputMulti');
+
+uploadBtn.addEventListener('click', () => {
+  askPassword('Enter password to upload document', UPLOAD_PASSWORD, () => {
+    pdfInputMulti.click();
+  });
+});
+
+async function extractPdfInfo(file){
+  const guessedTitle = file.name.replace(/\.pdf$/i,'').replace(/[_\-]+/g,' ').trim();
+  const info = {
+    fileName: file.name,
+    docNo: guessedTitle,
+    titleEn: guessedTitle,
+    titleVn: '—',
+    issueDate: '—',
+    issueNo: '—',
+    pages: '—'
+  };
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    info.pages = String(pdf.numPages);
+
+    const issueNoPatterns = [
+      /Issue\s*No\.?\s*[\/\-:]*\s*L[ầâa][nầ]\s*ban\s*h[àa]nh[\s:\/\-]*?(\d{1,3})/i,
+      /L[ầâa][nầ]\s*ban\s*h[àa]nh\s*[\/\-:]*\s*Issue\s*No\.?[\s:\/\-]*?(\d{1,3})/i,
+      /L[ầâa][nầ]\s*ban\s*h[àa]nh\s*[:\/\-]?\s*(\d{1,3})\b/i,
+      /Issue\s*No\.?\s*[:\/\-]?\s*(\d{1,3})\b/i
+    ];
+    const docNoPatterns = [
+      /Document\s*No\.?\s*[\/\-:]*\s*S[ốôo]\s*t[àa]i\s*li[ệêe]u[\s:\/\-]*?([A-Z0-9][A-Z0-9\/\.\-]{3,})/i,
+      /S[ốôo]\s*t[àa]i\s*li[ệêe]u\s*[\/\-:]*\s*Document\s*No\.?[\s:\/\-]*?([A-Z0-9][A-Z0-9\/\.\-]{3,})/i,
+      /Document\s*No\.?\s*[:\/\-]?\s*([A-Z0-9][A-Z0-9\/\.\-]{3,})/i,
+      /S[ốôo]\s*t[àa]i\s*li[ệêe]u\s*[:\/\-]?\s*([A-Z0-9][A-Z0-9\/\.\-]{3,})/i
+    ];
+    const nameLabelPatterns = [
+      /Document\s*Name\s*[\/\-:]*\s*T[êe]n\s*t[àa]i\s*li[ệêe]u[\s:\/\-]*?([^\n]{3,120})/i,
+      /T[êe]n\s*t[àa]i\s*li[ệêe]u\s*[\/\-:]*\s*Document\s*Name[\s:\/\-]*?([^\n]{3,120})/i,
+      /Document\s*Name\s*[:\/\-]?\s*([^\n]{3,120})/i
+    ];
+
+    const pagesToScan = Math.min(2, pdf.numPages);
+    for(let pn = 1; pn <= pagesToScan; pn++){
+      const page = await pdf.getPage(pn);
+      const viewport = page.getViewport({ scale: 1 });
+      const content = await page.getTextContent();
+      const items = content.items.map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5] })).filter(it => it.str.trim());
+      const text = items.map(it => it.str).join(' ');
+
+      if(pn === 1){
+        // --- Document No. (Số tài liệu) ---
+        let docNoFound = null;
+        for(const p of docNoPatterns){
+          const m = text.match(p);
+          if(m){ docNoFound = m[1].trim().replace(/[.,;]+$/,''); break; }
+        }
+        if(!docNoFound){
+          const generic = text.match(/[A-Z]{2,5}\/[A-Z]{2,5}\/[A-Z0-9]+/);
+          if(generic) docNoFound = generic[0];
+        }
+        if(docNoFound) info.docNo = docNoFound;
+
+        // --- Document Name (English) — label first, then middle column of the header ---
+        let nameFound = null;
+        for(const p of nameLabelPatterns){
+          const m = text.match(p);
+          if(m){ nameFound = m[1].trim().replace(/\s{2,}/g,' '); break; }
+        }
+        if(!nameFound && items.length){
+          // Fallback: read the middle column of the header table by horizontal position.
+          // Header table is assumed to sit in the top ~22% of the page.
+          const headerItems = items.filter(it => it.y > viewport.height * 0.78);
+          if(headerItems.length){
+            const midCol = headerItems
+              .filter(it => it.x >= viewport.width / 3 && it.x < viewport.width * 2 / 3)
+              .sort((a,b) => (b.y - a.y) || (a.x - b.x))
+              .map(it => it.str).join(' ').replace(/\s{2,}/g,' ').trim();
+            if(midCol.length >= 3) nameFound = midCol;
+          }
+        }
+        if(nameFound) info.titleEn = nameFound;
+
+        const dateMatch = text.match(/(\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{4})|([A-Za-z]{3}\s*\/\s*\d{1,2}\s*\/\s*\d{4})/);
+        if(dateMatch) info.issueDate = dateMatch[0].replace(/\s+/g,'');
+      }
+
+      if(info.issueNo === '—'){
+        for(const p of issueNoPatterns){
+          const m = text.match(p);
+          if(m){ info.issueNo = m[1]; break; }
+        }
+      }
+      if(info.issueNo !== '—') break;
+    }
+  }catch(err){
+    console.error('Could not read PDF content for', file.name, err);
+  }
+  return info;
+}
+
+pdfInputMulti.addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  if(files.length === 0) return;
+
+  const originalLabel = uploadBtn.textContent;
+  uploadBtn.textContent = files.length > 1 ? `Reading ${files.length} files...` : 'Reading file...';
+
+  let lastId = null;
+  for(const file of files){
+    const info = await extractPdfInfo(file);
+    const id = 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    records.push({ id, ...info, locked: false });
+    await savePdfBlob(id, file);
+    lastId = id;
+  }
+  saveRecords();
+  renderList(document.getElementById('searchInput').value);
+  renderToc();
+  if(lastId) selectRecord(lastId);
+
+  uploadBtn.textContent = originalLabel;
+  pdfInputMulti.value = '';
+});
+
+document.getElementById('searchInput').addEventListener('input', (e) => renderList(e.target.value));
+
+/* ---------- Init ---------- */
+renderList('');
+renderToc();
+updateSyncStatusBadge(isApiConfigured() ? 'loading' : 'local');
+(async function initApp(){
+  records = await loadRecords();
+  renderList(document.getElementById('searchInput').value);
+  renderToc();
+})();
+</script>
+</body>
+</html>

@@ -1445,9 +1445,9 @@ function renderToc(){
     if(key && grouped[key]) grouped[key].push(r);
     else other.push(r);
   });
-  const byName = (a, b) => a.titleEn.localeCompare(b.titleEn, undefined, { sensitivity: 'base', numeric: true });
-  FOLDERS.forEach(f => grouped[f.key].sort(byName));
-  other.sort(byName);
+  const byCode = (a, b) => a.docNo.localeCompare(b.docNo, undefined, { sensitivity: 'base', numeric: true });
+  FOLDERS.forEach(f => grouped[f.key].sort(byCode));
+  other.sort(byCode);
 
   const folderHtml = FOLDERS.map(f => {
     const docs = grouped[f.key];

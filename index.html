@@ -1445,6 +1445,9 @@ function renderToc(){
     if(key && grouped[key]) grouped[key].push(r);
     else other.push(r);
   });
+  const byName = (a, b) => a.titleEn.localeCompare(b.titleEn, undefined, { sensitivity: 'base', numeric: true });
+  FOLDERS.forEach(f => grouped[f.key].sort(byName));
+  other.sort(byName);
 
   const folderHtml = FOLDERS.map(f => {
     const docs = grouped[f.key];
@@ -1520,9 +1523,9 @@ function computeStatus(r){
 
 function renderList(filter){
   const q = (filter||'').trim().toLowerCase();
-  const filtered = records.filter(r =>
-    !q || r.docNo.toLowerCase().includes(q) || r.titleEn.toLowerCase().includes(q) || r.titleVn.toLowerCase().includes(q)
-  );
+  const filtered = records
+    .filter(r => !q || r.docNo.toLowerCase().includes(q) || r.titleEn.toLowerCase().includes(q) || r.titleVn.toLowerCase().includes(q))
+    .sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { sensitivity: 'base', numeric: true }));
   if(filtered.length === 0){
     listBody.innerHTML = `<div class="fl-empty">No matching documents.</div>`;
     return;

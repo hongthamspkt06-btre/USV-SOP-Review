@@ -932,6 +932,12 @@ async function saveSignedDocument(id, base64, fields){
   try{
     const res = await apiPost({ action: 'signDocument', id, base64, fields });
     updateSyncStatusBadge(res && res.ok ? 'synced' : 'error');
+    // Cập nhật driveFileId cục bộ từ record mà server trả về, để nếu người dùng tải
+    // lại trang ngay sau đó, lần xem PDF kế tiếp vẫn không cần gọi thêm request nào.
+    if(res && res.ok && res.record && res.record.driveFileId){
+      const rec = records.find(x => x.id === id);
+      if(rec) rec.driveFileId = res.record.driveFileId;
+    }
     return res;
   }catch(err){
     console.error('Could not sync signed document to Google Drive:', err);
@@ -952,6 +958,13 @@ const pdfBlobCache = new Map();
    vì file trên Drive được tạo mới (fileId đổi) — xem savePdfBlob/saveSignedDocument/
    deletePdfBlob bên dưới. */
 const pdfUrlCache = new Map();
+function driveViewUrlFromFileId(fileId){
+  return 'https://drive.google.com/file/d/' + fileId + '/preview';
+}
+// Chỉ dùng làm PHƯƠNG ÁN DỰ PHÒNG cho các record cũ chưa có sẵn r.driveFileId
+// (từ trước khi có cải tiến này). Với record mới, driveFileId đã có sẵn ngay
+// trong `records` (trả về từ listRecords) nên loadPdfPreview() dùng thẳng,
+// không cần gọi hàm này / không tốn thêm 1 round-trip mạng.
 async function getPdfViewUrl(id){
   if(pdfUrlCache.has(id)) return pdfUrlCache.get(id);
   if(!isApiConfigured()) return null;
@@ -959,6 +972,14 @@ async function getPdfViewUrl(id){
     const res = await apiGet({ action: 'getPdfUrl', id });
     if(res && res.ok && res.viewUrl){
       pdfUrlCache.set(id, res.viewUrl);
+      // "Chữa" record cũ: lưu lại driveFileId để các lần xem sau (kể cả sau khi
+      // tải lại trang) không phải gọi getPdfUrl nữa.
+      const r = records.find(x => x.id === id);
+      const match = /\/file\/d\/([^/]+)\//.exec(res.viewUrl);
+      if(r && match && !r.driveFileId){
+        r.driveFileId = match[1];
+        patchRecordRemote(r.id, { driveFileId: r.driveFileId });
+      }
       return res.viewUrl;
     }
   }catch(err){
@@ -1003,6 +1024,13 @@ async function savePdfBlob(id, file){
       const base64 = await blobToBase64(file);
       const res = await apiPost({ action: 'savePdf', id, base64 });
       updateSyncStatusBadge(res && res.ok ? 'synced' : 'error');
+      // Lưu driveFileId cục bộ ngay — sẽ được gửi lên server trong lần saveRecords()/
+      // patchRecordRemote() kế tiếp (do nơi gọi savePdfBlob thực hiện), để lần xem PDF
+      // tiếp theo không cần gọi thêm request nào tới GAS nữa.
+      if(res && res.ok && res.driveFileId){
+        const rec = records.find(x => x.id === id);
+        if(rec) rec.driveFileId = res.driveFileId;
+      }
       return;
     }catch(err){
       console.error('Could not upload PDF to Google Drive:', err);
@@ -1770,16 +1798,27 @@ async function loadPdfPreview(id){
       updatePdfDownloadBtn(id);
       return;
     }
-    // Ưu tiên 2: xem trực tiếp qua link Drive — không qua GAS, không qua base64,
-    // nhanh hơn nhiều lần so với cách cũ vì trình duyệt tải file thẳng từ Drive.
+    // Ưu tiên 2: đã có driveFileId sẵn trong record (từ listRecords/ký/đính kèm trước
+    // đó) -> dựng thẳng link Drive, hiển thị ngay lập tức, KHÔNG cần gọi request nào
+    // tới GAS. Đây là trường hợp phổ biến nhất sau lần cải tiến này.
+    const r = records.find(x => x.id === id);
+    if(r && r.driveFileId){
+      const url = driveViewUrlFromFileId(r.driveFileId);
+      pdfUrlCache.set(id, url);
+      body.innerHTML = `<iframe src="${url}" class="pdf-frame"></iframe>`;
+      updatePdfDownloadBtn(id);
+      return;
+    }
+    // Ưu tiên 3 (dự phòng cho record cũ chưa có driveFileId): gọi getPdfUrl — request
+    // này cũng tự "chữa" record bằng cách lưu lại driveFileId cho các lần xem sau.
     const viewUrl = await getPdfViewUrl(id);
     if(viewUrl){
       body.innerHTML = `<iframe src="${viewUrl}" class="pdf-frame"></iframe>`;
       updatePdfDownloadBtn(id);
       return;
     }
-    // Ưu tiên 3 (dự phòng): chưa cấu hình API, hoặc Drive chưa cho phép chia sẻ link
-    // (ví dụ tài khoản không hỗ trợ) -> quay lại cách cũ qua GAS + base64.
+    // Ưu tiên 4 (dự phòng cuối): chưa cấu hình API, hoặc Drive chưa cho phép chia sẻ
+    // link (ví dụ tài khoản không hỗ trợ) -> quay lại cách cũ qua GAS + base64.
     const blob = await getPdfBlob(id);
     if(blob){
       currentObjectUrl = URL.createObjectURL(blob);
@@ -1816,8 +1855,8 @@ async function onAttachPdf(e){
     r.sig = {}; // reset signature status: this is a fresh PDF with no stamps yet
     r.locked = false; // this is the initial upload for this document — allow editing Document Code/Name
   }
-  await savePdfBlob(activeId, file);
-  if(r) patchRecordRemote(r.id, { fileName: r.fileName, titleEn: r.titleEn, titleVn: r.titleVn, issueDate: r.issueDate, issueNo: r.issueNo, pages: r.pages, sig: r.sig, locked: r.locked });
+  await savePdfBlob(activeId, file); // đặt r.driveFileId nếu server trả về thành công
+  if(r) patchRecordRemote(r.id, { fileName: r.fileName, titleEn: r.titleEn, titleVn: r.titleVn, issueDate: r.issueDate, issueNo: r.issueNo, pages: r.pages, sig: r.sig, locked: r.locked, driveFileId: r.driveFileId });
   selectRecord(activeId);
 }
 

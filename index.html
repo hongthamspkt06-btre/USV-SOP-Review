@@ -308,7 +308,6 @@
   <div class="section-label boxed">
     <span class="lbl"><span class="dot"></span>Document Info</span>
     <span style="display:flex; gap:8px;">
-      <span class="btn small" id="sigSettingsBtn">🖊 Signature settings</span>
       <span class="btn small" id="clearSelectionBtn" style="display:none;">✕ Clear selection</span>
     </span>
   </div>
@@ -318,7 +317,10 @@
     </div>
   </div>
 
-  <div class="section-label"><span class="lbl"><span class="dot"></span>Document List</span></div>
+  <div class="section-label">
+    <span class="lbl"><span class="dot"></span>Document List</span>
+    <span class="btn small" id="sigSettingsBtn">🖊 Signature Setting</span>
+  </div>
   <div class="file-list card-shadow">
     <div class="fl-scroll">
       <div class="fl-head">
@@ -362,7 +364,7 @@
 <div class="modal-overlay" id="sigModalOverlay" style="display:none;">
   <div class="modal-box card-shadow">
     <div class="modal-head">
-      <span>Signature settings</span>
+      <span>Signature Setting</span>
       <span class="btn small" id="sigModalClose">✕ Close</span>
     </div>
     <div class="modal-body" id="sigModalBody"></div>
@@ -1410,7 +1412,7 @@ async function runStampModal(key, meta0, r){
   const cfg = sigConfig[key];
   const meta = meta0;
   if(!cfg.image){
-    alert(`Chưa có hình chữ ký cho "${meta.role}". Vui lòng bấm "🖊 Signature settings" để tải hình lên trước.`);
+    alert(`Chưa có hình chữ ký cho "${meta.role}". Vui lòng bấm "🖊 Signature Setting" để tải hình lên trước.`);
     openSigModal();
     return;
   }
@@ -1699,11 +1701,25 @@ function computeStatus(r){
   return { label: 'Partial', cls: 'partial', tooltip: lines.join('\n') };
 }
 
+// Thứ tự nhóm giống hệt Index (toc-panel): 1. QA, 2. Factory, 3. PSC... rồi "Other" ở
+// cuối cùng — dùng chung FOLDERS/getFolderKey đã định nghĩa ở phần Table of contents.
+function folderSortIndex(docNo){
+  const key = getFolderKey(docNo);
+  const idx = FOLDERS.findIndex(f => f.key === key);
+  return idx === -1 ? FOLDERS.length : idx; // không khớp mục nào -> xếp cuối, giống "Other" trong Index
+}
+
 function renderList(filter){
   const q = (filter||'').trim().toLowerCase();
   const filtered = records
     .filter(r => !q || r.docNo.toLowerCase().includes(q) || r.titleEn.toLowerCase().includes(q) || r.titleVn.toLowerCase().includes(q))
-    .sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { sensitivity: 'base', numeric: true }));
+    .sort((a, b) => {
+      // 1) Theo đúng thứ tự mục trong Index (01. QA, 02. Factory, ...)
+      const fa = folderSortIndex(a.docNo), fb = folderSortIndex(b.docNo);
+      if(fa !== fb) return fa - fb;
+      // 2) Trong cùng 1 mục, theo STT của Document Code (SOP001, SOP002, ... SOP010...)
+      return a.docNo.localeCompare(b.docNo, undefined, { sensitivity: 'base', numeric: true });
+    });
   if(filtered.length === 0){
     listBody.innerHTML = `<div class="fl-empty">No matching documents.</div>`;
     return;

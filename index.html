@@ -872,16 +872,99 @@ async function loadRecords(){
   }
 }
 
-async function saveRecords(){
+// Xếp hàng các lần gọi saveRecords() liên tiếp thay vì bắn nhiều request song
+// song (trước đây có thể xảy ra khi 1 thao tác gọi saveRecords() nhiều lần
+// liên tục — request trả về sau có thể ghi đè nhầm lên request trả về trước).
+// Do "records" luôn đọc tại thời điểm request thực sự chạy, các lần gọi dồn
+// dập sẽ tự gộp lại thành 1 lần gửi trạng thái mới nhất.
+let _saveRecordsChain = Promise.resolve();
+function saveRecords(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }catch(e){}
-  if(!isApiConfigured()) return;
+  if(!isApiConfigured()) return _saveRecordsChain;
+  _saveRecordsChain = _saveRecordsChain.then(async () => {
+    try{
+      const res = await apiPost({ action: 'saveRecords', records });
+      updateSyncStatusBadge(res && res.ok ? 'synced' : 'error');
+    }catch(err){
+      console.error('Could not sync records to Google Drive:', err);
+      updateSyncStatusBadge('error');
+    }
+  });
+  return _saveRecordsChain;
+}
+
+// Cập nhật CHỈ 1 phần của đúng 1 record trên server (action 'patchRecord'),
+// thay vì gửi lại toàn bộ mảng records như saveRecords() — dùng cho các thao
+// tác sửa 1 trường (Issue No., Issue Date, khoá record, trạng thái ký...).
+// Payload nhỏ hơn nhiều lần, đặc biệt khi danh sách SOP đã có hàng trăm tài liệu.
+async function patchRecordRemote(id, fields){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }catch(e){}
+  if(!isApiConfigured()) return { ok: true };
   try{
-    const res = await apiPost({ action: 'saveRecords', records });
+    const res = await apiPost({ action: 'patchRecord', id, fields });
     updateSyncStatusBadge(res && res.ok ? 'synced' : 'error');
+    return res;
   }catch(err){
-    console.error('Could not sync records to Google Drive:', err);
+    console.error('Could not sync record update to Google Drive:', err);
     updateSyncStatusBadge('error');
+    return { ok: false, error: String(err) };
   }
+}
+
+// Lưu tài liệu vừa ký: gộp "upload PDF mới" + "cập nhật trạng thái sig/comment
+// của record" thành 1 request duy nhất (action 'signDocument') khi có backend,
+// giảm 1 round-trip mạng so với gọi savePdfBlob() rồi saveRecords() riêng lẻ.
+async function saveSignedDocument(id, base64, fields){
+  const blob = base64ToBlob(base64, 'application/pdf');
+  pdfBlobCache.set(id, blob); // để loadPdfPreview() sau đó lấy ngay từ cache, không tải lại
+  pdfUrlCache.delete(id); // file trên Drive sẽ được tạo mới (fileId đổi) -> URL cũ không còn đúng
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(records)); }catch(e){}
+  if(!isApiConfigured()){
+    const db = await openPdfDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).put(blob, id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    return { ok: true };
+  }
+  try{
+    const res = await apiPost({ action: 'signDocument', id, base64, fields });
+    updateSyncStatusBadge(res && res.ok ? 'synced' : 'error');
+    return res;
+  }catch(err){
+    console.error('Could not sync signed document to Google Drive:', err);
+    updateSyncStatusBadge('error');
+    return { ok: false, error: String(err) };
+  }
+}
+
+/* ---------- Cache PDF blob trong bộ nhớ theo phiên làm việc hiện tại ----------
+   Trước đây mỗi lần xem/ký cùng 1 tài liệu đều gọi lại getPdf qua GAS+Drive,
+   kể cả khi vừa tải xong vài giây trước (ví dụ: 1 lần ký = xem trước, chèn
+   chữ ký, rồi tải lại preview = 3 lần tải cùng 1 file PDF). Cache này giúp
+   các lần gọi getPdfBlob() sau chỉ đọc từ bộ nhớ, không gọi mạng nữa. */
+const pdfBlobCache = new Map();
+
+/* Cache URL xem trực tiếp trên Drive (theo id tài liệu) trong phiên làm việc hiện
+   tại. Bị xoá mỗi khi nội dung PDF của tài liệu đó thay đổi (ký, đính kèm lại, xoá)
+   vì file trên Drive được tạo mới (fileId đổi) — xem savePdfBlob/saveSignedDocument/
+   deletePdfBlob bên dưới. */
+const pdfUrlCache = new Map();
+async function getPdfViewUrl(id){
+  if(pdfUrlCache.has(id)) return pdfUrlCache.get(id);
+  if(!isApiConfigured()) return null;
+  try{
+    const res = await apiGet({ action: 'getPdfUrl', id });
+    if(res && res.ok && res.viewUrl){
+      pdfUrlCache.set(id, res.viewUrl);
+      return res.viewUrl;
+    }
+  }catch(err){
+    console.error('Could not get direct Drive view URL, will fall back to GAS+base64:', err);
+  }
+  return null;
 }
 
 /* ---------- base64 <-> Blob helpers (used by the Drive-backed PDF storage) ---------- */
@@ -913,6 +996,8 @@ function openPdfDB(){
   });
 }
 async function savePdfBlob(id, file){
+  pdfBlobCache.set(id, file); // cập nhật cache ngay, không cần chờ tải lại từ Drive
+  pdfUrlCache.delete(id); // file trên Drive sẽ được tạo mới (fileId đổi) -> URL cũ không còn đúng
   if(isApiConfigured()){
     try{
       const base64 = await blobToBase64(file);
@@ -934,12 +1019,15 @@ async function savePdfBlob(id, file){
   });
 }
 async function getPdfBlob(id){
+  if(pdfBlobCache.has(id)) return pdfBlobCache.get(id);
   if(isApiConfigured()){
     try{
       const res = await apiGet({ action: 'getPdf', id });
       if(res && res.ok){
         updateSyncStatusBadge('synced');
-        return res.base64 ? base64ToBlob(res.base64, 'application/pdf') : null;
+        const blob = res.base64 ? base64ToBlob(res.base64, 'application/pdf') : null;
+        if(blob) pdfBlobCache.set(id, blob);
+        return blob;
       }
       // "PDF not found" nghĩa là tài liệu này đơn giản là chưa được đính kèm PDF —
       // đây là trạng thái bình thường, KHÔNG phải lỗi đồng bộ Drive. Backend vẫn
@@ -959,11 +1047,13 @@ async function getPdfBlob(id){
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const req = tx.objectStore(STORE_NAME).get(id);
-    req.onsuccess = () => resolve(req.result || null);
+    req.onsuccess = () => { if(req.result) pdfBlobCache.set(id, req.result); resolve(req.result || null); };
     req.onerror = () => reject(req.error);
   });
 }
 async function deletePdfBlob(id){
+  pdfBlobCache.delete(id);
+  pdfUrlCache.delete(id);
   if(isApiConfigured()){
     try{ await apiPost({ action: 'deletePdf', id }); }catch(e){ console.error(e); }
     return;
@@ -1036,6 +1126,25 @@ async function saveSigConfig(){
   }
 }
 let sigConfig = loadSigConfigLocalCache();
+// Cờ đánh dấu đã tải xong bản sigConfig chính thức từ server hay chưa — dùng để
+// tránh gọi loadSigConfig() nhiều lần (mỗi lần mở modal ký) nếu đã tải rồi.
+let sigConfigLoaded = false;
+let sigConfigLoadingPromise = null;
+// Tải sigConfig CHỈ khi thực sự cần (mở modal ký hoặc modal cài đặt chữ ký) thay vì
+// tải ngay lúc mở trang — sigConfig chứa ảnh chữ ký dạng base64 nên khá nặng, trước
+// đây làm chậm cả việc hiển thị danh sách tài liệu dù người dùng chỉ đang xem, chưa
+// ký gì cả. `sigConfig` vẫn có giá trị hợp lệ ngay từ đầu nhờ bản cache cục bộ ở trên.
+async function ensureSigConfigLoaded(){
+  if(sigConfigLoaded) return sigConfig;
+  if(!sigConfigLoadingPromise){
+    sigConfigLoadingPromise = loadSigConfig().then(cfg => {
+      sigConfig = cfg;
+      sigConfigLoaded = true;
+      return cfg;
+    });
+  }
+  return sigConfigLoadingPromise;
+}
 
 function fileToDataURL(file){
   return new Promise((resolve, reject) => {
@@ -1139,16 +1248,24 @@ function renderSigModal(){
   });
 }
 
-function openSigModal(){ renderSigModal(); sigModalOverlay.style.display = 'flex'; }
+function openSigModal(){
+  renderSigModal();
+  sigModalOverlay.style.display = 'flex';
+  // Tải bản sigConfig chính thức từ server (nếu chưa có) rồi render lại khi xong,
+  // để nếu máy khác vừa đổi ảnh/vị trí chữ ký thì màn hình này cũng cập nhật theo.
+  ensureSigConfigLoaded().then(() => { if(sigModalOverlay.style.display === 'flex') renderSigModal(); });
+}
 function closeSigModal(){ sigModalOverlay.style.display = 'none'; }
 document.getElementById('sigSettingsBtn').addEventListener('click', openSigModal);
 document.getElementById('sigModalClose').addEventListener('click', closeSigModal);
 sigModalOverlay.addEventListener('click', (e) => { if(e.target === sigModalOverlay) closeSigModal(); });
 
 /* ---------- Embed the configured signature image into the actual PDF at given position, auto-save ---------- */
-async function embedSignatureIntoPdf(docId, key, xPct, yPct, widthPts, pageIndexOverride){
+async function embedSignatureIntoPdf(docId, key, xPct, yPct, widthPts, pageIndexOverride, preloadedBlob){
   const cfg = sigConfig[key];
-  const blob = await getPdfBlob(docId);
+  // Dùng lại blob đã tải sẵn (ví dụ: từ lúc mở modal xem trước) thay vì gọi
+  // getPdfBlob() lần nữa — tránh tải cùng 1 file PDF 2 lần trong 1 thao tác ký.
+  const blob = preloadedBlob || await getPdfBlob(docId);
   if(!blob) throw new Error('Tài liệu này chưa có file PDF đính kèm.');
   const pdfBytes = await blob.arrayBuffer();
   const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes, { ignoreEncryption: true, updateMetadata: false });
@@ -1183,9 +1300,10 @@ async function embedSignatureIntoPdf(docId, key, xPct, yPct, widthPts, pageIndex
   page.drawImage(img, { x, y, width: w, height: h });
 
   const newBytes = await pdfDoc.save();
-  const newBlob = new Blob([newBytes], { type: 'application/pdf' });
-  await savePdfBlob(docId, newBlob);
-  return pageIndex;
+  // Không tự lưu ở đây nữa — trả base64 về cho nơi gọi (doneBtn handler) để
+  // gộp chung với việc cập nhật trạng thái record thành 1 request (signDocument).
+  const newBase64 = await blobToBase64(new Blob([newBytes], { type: 'application/pdf' }));
+  return { pageIndex, newBase64 };
 }
 
 /* ---------- Position-adjuster modal: drag/resize the signature directly on the PDF page,
@@ -1257,6 +1375,10 @@ function openStampModal(key){
 }
 
 async function runStampModal(key, meta0, r){
+  // Đảm bảo đã có bản sigConfig chính thức (ảnh chữ ký) từ server trước khi ký —
+  // nếu trang vừa mở và máy này chưa từng tải sigConfig, chờ tải xong ở đây thay vì
+  // chặn ngay lúc mở trang (xem ensureSigConfigLoaded()).
+  await ensureSigConfigLoaded();
   const cfg = sigConfig[key];
   const meta = meta0;
   if(!cfg.image){
@@ -1264,8 +1386,8 @@ async function runStampModal(key, meta0, r){
     openSigModal();
     return;
   }
-  const blob = await getPdfBlob(activeId);
-  if(!blob){
+  const previewBlob = await getPdfBlob(activeId);
+  if(!previewBlob){
     alert('Tài liệu này chưa có file PDF đính kèm.');
     return;
   }
@@ -1276,7 +1398,7 @@ async function runStampModal(key, meta0, r){
 
   let pdf;
   try{
-    const arrBuf = await blob.arrayBuffer();
+    const arrBuf = await previewBlob.arrayBuffer();
     pdf = await pdfjsLib.getDocument({ data: arrBuf }).promise;
   }catch(err){
     console.error(err);
@@ -1401,18 +1523,21 @@ async function runStampModal(key, meta0, r){
     const original = doneBtn.textContent;
     doneBtn.textContent = 'Đang lưu...';
     try{
-      await embedSignatureIntoPdf(activeId, key, curXPct, curYPct, curWidthPts, pageNum - 1);
+      const { newBase64 } = await embedSignatureIntoPdf(activeId, key, curXPct, curYPct, curWidthPts, pageNum - 1, previewBlob);
       cfg.xPct = curXPct; cfg.yPct = curYPct; cfg.widthPx = curWidthPts;
       saveSigConfig();
       r.sig = r.sig || {};
       r.sig[key] = true;
       if(r.comments && r.comments[key]) delete r.comments[key];
-      saveRecords();
+      // 1 request duy nhất: upload PDF đã ký + cập nhật trạng thái sig/comment
+      await saveSignedDocument(activeId, newBase64, { sig: r.sig, comments: r.comments || {} });
       const fieldEl = document.querySelector(`.sig-field[data-field="${key}"]`);
       if(fieldEl){ fieldEl.classList.add('signed'); fieldEl.classList.remove('commented'); }
       closeStampModal();
       renderList(document.getElementById('searchInput').value);
       renderToc();
+      // PDF vừa ký đã nằm sẵn trong pdfBlobCache (xem saveSignedDocument), nên
+      // lệnh gọi này lấy ngay từ bộ nhớ, không tải lại từ Drive lần nữa.
       if(activeId === r.id) loadPdfPreview(activeId);
     }catch(err){
       console.error('Signature insert failed:', err);
@@ -1432,7 +1557,7 @@ async function runStampModal(key, meta0, r){
     r.comments[key] = { text: commentText, role: meta.role, date: new Date().toISOString().slice(0,10) };
     r.sig = r.sig || {};
     r.sig[key] = false;
-    saveRecords();
+    patchRecordRemote(r.id, { sig: r.sig, comments: r.comments });
     closeStampModal();
     if(activeId === r.id) selectRecord(activeId);
   };
@@ -1603,15 +1728,31 @@ function updatePdfDownloadBtn(id){
   downloadBtn.style.display = (st && st.label === 'Approved') ? 'inline-block' : 'none';
 }
 
-document.getElementById('pdfDownloadBtn').addEventListener('click', () => {
-  if(!currentObjectUrl || !activeId) return;
+document.getElementById('pdfDownloadBtn').addEventListener('click', async () => {
+  if(!activeId) return;
+  const downloadBtn = document.getElementById('pdfDownloadBtn');
   const r = records.find(x => x.id === activeId);
+  const fileName = (r && r.fileName) ? r.fileName : `${(r && r.docNo) || 'document'}.pdf`;
+  let url = currentObjectUrl;
+  let isTemp = false;
+  if(!url){
+    // Xem trước dùng link Drive trực tiếp nên chưa có blob trong tay — tải bytes qua
+    // GAS lúc này (chỉ khi thực sự bấm Download), thay vì tải sẵn ngay khi mở preview.
+    const original = downloadBtn.textContent;
+    downloadBtn.textContent = 'Đang tải...';
+    const blob = await getPdfBlob(activeId);
+    downloadBtn.textContent = original;
+    if(!blob) return;
+    url = URL.createObjectURL(blob);
+    isTemp = true;
+  }
   const a = document.createElement('a');
-  a.href = currentObjectUrl;
-  a.download = (r && r.fileName) ? r.fileName : `${(r && r.docNo) || 'document'}.pdf`;
+  a.href = url;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  if(isTemp) URL.revokeObjectURL(url);
 });
 
 async function loadPdfPreview(id){
@@ -1620,6 +1761,25 @@ async function loadPdfPreview(id){
   if(currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
   updatePdfDownloadBtn(id);
   try{
+    // Ưu tiên 1: đã có sẵn trong bộ nhớ (vừa xem hoặc vừa ký xong tài liệu này) ->
+    // hiển thị ngay lập tức, không gọi mạng.
+    if(pdfBlobCache.has(id)){
+      const blob = pdfBlobCache.get(id);
+      currentObjectUrl = URL.createObjectURL(blob);
+      body.innerHTML = `<iframe src="${currentObjectUrl}" class="pdf-frame"></iframe>`;
+      updatePdfDownloadBtn(id);
+      return;
+    }
+    // Ưu tiên 2: xem trực tiếp qua link Drive — không qua GAS, không qua base64,
+    // nhanh hơn nhiều lần so với cách cũ vì trình duyệt tải file thẳng từ Drive.
+    const viewUrl = await getPdfViewUrl(id);
+    if(viewUrl){
+      body.innerHTML = `<iframe src="${viewUrl}" class="pdf-frame"></iframe>`;
+      updatePdfDownloadBtn(id);
+      return;
+    }
+    // Ưu tiên 3 (dự phòng): chưa cấu hình API, hoặc Drive chưa cho phép chia sẻ link
+    // (ví dụ tài khoản không hỗ trợ) -> quay lại cách cũ qua GAS + base64.
     const blob = await getPdfBlob(id);
     if(blob){
       currentObjectUrl = URL.createObjectURL(blob);
@@ -1657,7 +1817,7 @@ async function onAttachPdf(e){
     r.locked = false; // this is the initial upload for this document — allow editing Document Code/Name
   }
   await savePdfBlob(activeId, file);
-  saveRecords();
+  if(r) patchRecordRemote(r.id, { fileName: r.fileName, titleEn: r.titleEn, titleVn: r.titleVn, issueDate: r.issueDate, issueNo: r.issueNo, pages: r.pages, sig: r.sig, locked: r.locked });
   selectRecord(activeId);
 }
 
@@ -1668,7 +1828,7 @@ function selectRecord(id){
     const prev = records.find(x => x.id === activeId);
     if(prev && prev.locked === false){
       prev.locked = true;
-      saveRecords();
+      patchRecordRemote(prev.id, { locked: true });
     }
   }
   activeId = id;
@@ -1707,7 +1867,7 @@ function selectRecord(id){
       const trimmed = val.trim();
       if(!trimmed) return;
       r.issueNo = trimmed;
-      saveRecords();
+      patchRecordRemote(r.id, { issueNo: r.issueNo });
       selectRecord(activeId);
     });
   }
@@ -1719,7 +1879,7 @@ function selectRecord(id){
       const trimmed = val.trim();
       if(!trimmed) return;
       r.issueDate = trimmed;
-      saveRecords();
+      patchRecordRemote(r.id, { issueDate: r.issueDate });
       selectRecord(activeId);
     });
   }
@@ -1731,7 +1891,7 @@ function selectRecord(id){
       const trimmed = val.trim();
       if(!trimmed) return;
       r.docNo = trimmed;
-      saveRecords();
+      patchRecordRemote(r.id, { docNo: r.docNo });
       selectRecord(activeId);
     });
   }
@@ -1743,7 +1903,7 @@ function selectRecord(id){
       const trimmed = val.trim();
       if(!trimmed) return;
       r.titleEn = trimmed;
-      saveRecords();
+      patchRecordRemote(r.id, { titleEn: r.titleEn });
       selectRecord(activeId);
     });
   }
@@ -1761,7 +1921,7 @@ function deselectRecord(){
     const prev = records.find(x => x.id === activeId);
     if(prev && prev.locked === false){
       prev.locked = true;
-      saveRecords();
+      patchRecordRemote(prev.id, { locked: true });
     }
   }
   activeId = null;
@@ -1885,18 +2045,24 @@ pdfInputMulti.addEventListener('change', async (e) => {
   const originalLabel = uploadBtn.textContent;
   uploadBtn.textContent = files.length > 1 ? `Reading ${files.length} files...` : 'Reading file...';
 
-  let lastId = null;
+  // Đọc metadata PDF tuần tự (pdfjsLib xử lý an toàn hơn khi không chạy song song),
+  // nhưng UPLOAD lên Drive thì chạy song song bên dưới — đây là phần tốn thời gian
+  // chờ mạng nhất khi chọn nhiều file cùng lúc.
+  const entries = [];
   for(const file of files){
     const info = await extractPdfInfo(file);
     const id = 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    records.push({ id, ...info, locked: false });
-    await savePdfBlob(id, file);
-    lastId = id;
+    entries.push({ id, file, info });
   }
+  entries.forEach(({ id, info }) => records.push({ id, ...info, locked: false }));
+
+  uploadBtn.textContent = files.length > 1 ? `Uploading ${files.length} files...` : 'Uploading...';
+  await Promise.all(entries.map(({ id, file }) => savePdfBlob(id, file)));
+
   saveRecords();
   renderList(document.getElementById('searchInput').value);
   renderToc();
-  if(lastId) selectRecord(lastId);
+  if(entries.length) selectRecord(entries[entries.length - 1].id);
 
   uploadBtn.textContent = originalLabel;
   pdfInputMulti.value = '';
@@ -1909,11 +2075,12 @@ renderList('');
 renderToc();
 updateSyncStatusBadge(isApiConfigured() ? 'loading' : 'local');
 (async function initApp(){
+  // Chỉ tải records lúc mở trang — đây là dữ liệu cần hiển thị ngay. sigConfig (ảnh
+  // chữ ký) được tải lười (ensureSigConfigLoaded) khi user thực sự mở modal ký/cài
+  // đặt chữ ký, để không làm chậm màn hình danh sách tài liệu lúc vừa mở trang.
   records = await loadRecords();
-  sigConfig = await loadSigConfig();
   renderList(document.getElementById('searchInput').value);
   renderToc();
-  if(sigModalOverlay.style.display === 'flex') renderSigModal();
 })();
 </script>
 </body>

@@ -33,16 +33,16 @@
   html{ background: var(--bg); }
   body{
     background: var(--bg); color: var(--text); font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
-    min-height:100vh; padding: 28px 20px 60px;
+    min-height:100vh; padding: 4.76mm 20px 60px;
   }
   /* Mọi phần tử khác kế thừa font-family từ body */
   *, *::before, *::after{ font-family: inherit; }
   .wrap{ max-width: 1560px; margin: 0 auto; }
 
   /* ===== 3-column layout ===== */
-  .layout{ display:grid; grid-template-columns: 240px 1fr 1fr; gap:16px; align-items:stretch; margin-top:14px; }
+  .layout{ display:grid; grid-template-columns: 240px 1fr 1fr; gap:16px; align-items:stretch; margin-top:4.76mm; }
 
-  .toc-panel{ display:flex; flex-direction:column; gap:10px; position: sticky; top: 16px; max-height: calc(100vh - 32px); }
+  .toc-panel{ display:flex; flex-direction:column; gap:4.76mm; position: sticky; top: 16px; max-height: calc(100vh - 32px); }
   .toc-panel-inner{ background: var(--panel); border:1px solid var(--border); border-radius:10px; padding: 12px; flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
   .toc-head{
     color:#fff; background: var(--navy); border:none; border-radius:8px;
@@ -71,7 +71,7 @@
 
   .main-col{ min-width:0; display:flex; flex-direction:column; }
 
-  .pdf-panel{ display:flex; flex-direction:column; gap:10px; position: sticky; top:16px; height: 100%; max-height: calc(100vh - 32px); }
+  .pdf-panel{ display:flex; flex-direction:column; gap:4.76mm; position: sticky; top:16px; height: 100%; max-height: calc(100vh - 32px); }
   .pdf-panel-inner{ background: var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; flex:1; min-height:0; display:flex; flex-direction:column; }
   .pdf-panel-head{
     display:flex; align-items:center; justify-content:space-between; padding:0 14px;
@@ -82,7 +82,7 @@
   .pdf-panel-body{ flex:1; overflow:auto; position:relative; }
   .pdf-frame{ width:100%; height:100%; border:none; display:block; }
   .pdf-empty{ height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:20px; color: var(--text-faint); font-family: var(--mono); font-size:12px; }
-  .btn.small{ padding:6px 11px; font-size:10.5px; }
+  .btn.small{ padding:6px 11px; font-size:10.5px; text-transform:none; }
 
   @media (max-width: 1180px){
     .layout{ grid-template-columns: 1fr; }
@@ -123,13 +123,13 @@
 
   .section-label{
     font-size:12px; letter-spacing:1.4px; text-transform:uppercase;
-    color: var(--text-faint); padding: 18px 4px 8px; display:flex; align-items:center; justify-content:space-between; gap:8px;
+    color: var(--text-faint); padding: 4.76mm 4px 8px; display:flex; align-items:center; justify-content:space-between; gap:8px;
   }
   .section-label .lbl{ display:flex; align-items:center; gap:8px; }
   .section-label .dot{ width:5px; height:5px; border-radius:50%; background: var(--teal); }
   .section-label.boxed{
     background: var(--navy); color:#fff; border:none; border-radius:8px;
-    height:8.9mm; min-height:8.9mm; padding:0 14px; margin-top:0; margin-bottom:10px;
+    height:8.9mm; min-height:8.9mm; padding:0 14px; margin-top:0; margin-bottom:4.76mm;
     text-transform:none; letter-spacing:0.3px; font-weight:700; font-size:14px !important;
   }
   .section-label.boxed .lbl{ color:#fff; }
@@ -306,7 +306,7 @@
 
     <main class="main-col">
   <div class="section-label boxed">
-    <span class="lbl"><span class="dot"></span>Document Info</span>
+    <span class="lbl">Document Info</span>
     <span style="display:flex; gap:8px;">
       <span class="btn small" id="clearSelectionBtn" style="display:none;">✕ Clear selection</span>
     </span>
